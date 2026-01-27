@@ -10,38 +10,192 @@ struct MainView: View {
             VStack(spacing: 0) {
                 StatusBar()
                 
-                VStack(spacing: 30) {
-                    Spacer()
-                    
-                    // Three section cards
-                    SectionCard(
-                        title: "Live Radio Transcript",
-                        systemImage: "waveform",
-                        color: .blue
-                    ) {
-                        viewModel.navigateTo(.liveTranscript)
+                VStack(spacing: 0) {
+                    // Top half: Live Transcript (left) + 9 Line (right)
+                    HStack(spacing: 0) {
+                        // Live Radio Transcript Section (Top Left)
+                        LiveTranscriptSection(viewModel: viewModel)
+                            .frame(maxWidth: .infinity)
+                        
+                        // 9 Line Section (Top Right)
+                        NineLineSection(viewModel: viewModel)
+                            .frame(maxWidth: .infinity)
                     }
+                    .frame(height: UIScreen.main.bounds.height * 0.5)
                     
-                    SectionCard(
-                        title: "9 Line",
-                        systemImage: "list.number",
-                        color: .orange
-                    ) {
-                        viewModel.navigateTo(.nineLine)
-                    }
-                    
-                    SectionCard(
-                        title: "Map View",
-                        systemImage: "map",
-                        color: .green
-                    ) {
-                        viewModel.navigateTo(.map)
-                    }
-                    
-                    Spacer()
+                    // Bottom half: Map
+                    MapSection(viewModel: viewModel)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: UIScreen.main.bounds.height * 0.5)
                 }
-                .padding(.horizontal, 40)
             }
         }
     }
-}	
+}
+
+// MARK: - Live Transcript Section (Top Left)
+struct LiveTranscriptSection: View {
+    @ObservedObject var viewModel: MainViewModel
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text("Live Radio Transcript")
+                .font(.system(size: 24, weight: .bold))
+                .foregroundColor(.white)
+                .padding(.horizontal, 15)
+                .padding(.top, 15)
+                .padding(.bottom, 10)
+            
+            // Tappable transcript area
+            Button(action: {
+                viewModel.navigateTo(.liveTranscript)
+            }) {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 12) {
+                        TranscriptLine(text: "Axeman two-one this is Hawg one-one checking in, two by GBU-12, 30 mike-mike, playtime fifteen, fuel six point two.")
+                        TranscriptLine(text: "Hawg one-one roger, standby for tasking.")
+                        TranscriptLine(text: "...break...")
+                        TranscriptLine(text: "Hawg one-one type one control, troops in contact, grid three two Sierra November Bravo four three eight two one seven six two one nine, mark red smoke, say when tally.")
+                        TranscriptLine(text: "Tally smoke.")
+                        TranscriptLine(text: "Friendlies south four hundred meters, danger close, request immediate.")
+                        TranscriptLine(text: "Copy danger close, heading two seven zero, in hot.")
+                        TranscriptLine(text: "Cleared hot cleared hot.")
+                    }
+                    .padding(15)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(AppColors.transcriptBackground)
+            }
+            .buttonStyle(PlainButtonStyle())
+            
+            // Action buttons (NOT tappable for expansion)
+            HStack(spacing: 10) {
+                ActionButton(title: "Confirm", color: AppColors.confirmGreen)
+                    .frame(height: 60)
+                ActionButton(title: "Correct", color: AppColors.correctYellow)
+                    .frame(height: 60)
+                ActionButton(title: "Reject", color: AppColors.rejectRed)
+                    .frame(height: 60)
+            }
+            .padding(.horizontal, 15)
+            .padding(.vertical, 10)
+            .allowsHitTesting(false) // Buttons don't expand
+        }
+        .background(Color.black)
+    }
+}
+
+// MARK: - 9 Line Section (Top Right)
+struct NineLineSection: View {
+    @ObservedObject var viewModel: MainViewModel
+    @State private var selectedCategory: String = "9 Line"
+    
+    let categories = ["CAS", "S. UPDATE", "9 Line", "Remarks", "Restrictions", "BDA", "GamePlan"]
+    
+    var body: some View {
+        HStack(spacing: 0) {
+            // Left sidebar with category buttons (NOT tappable for expansion)
+            VStack(spacing: 8) {
+                ForEach(categories, id: \.self) { category in
+                    Button(action: {
+                        selectedCategory = category
+                    }) {
+                        Text(category)
+                            .font(.system(size: 14, weight: selectedCategory == category ? .semibold : .regular))
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 50)
+                            .background(selectedCategory == category ? AppColors.selectedCategory : AppColors.categoryButton)
+                            .cornerRadius(6)
+                    }
+                    .allowsHitTesting(true) // Category buttons work but don't expand
+                    .padding(.horizontal, 8)
+                }
+                Spacer()
+            }
+            .frame(width: 140)
+            .background(AppColors.sidebarBackground)
+            
+            // Right content area (Tappable for expansion)
+            Button(action: {
+                viewModel.navigateTo(.nineLine)
+            }) {
+                VStack(alignment: .leading, spacing: 10) {
+                    Text(selectedCategory)
+                        .font(.system(size: 24, weight: .bold))
+                        .foregroundColor(.white)
+                        .padding(.top, 15)
+                        .padding(.horizontal, 15)
+                    
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 8) {
+                            NineLineText(text: "Line 1: IP Hammer.")
+                            NineLineText(text: "Line 2: Heading 270.")
+                            NineLineText(text: "Line 3: 8 decimal 5 miles.")
+                            NineLineText(text: "Line 4: Target elevation 1450 feet.")
+                            NineLineText(text: "Line 5: 2 BMPs in the open, grid 32S NB 43821 76219.")
+                            NineLineText(text: "Line 6: Mark by red smoke.")
+                            NineLineText(text: "Line 7: Friendlies 400 meters south.")
+                            NineLineText(text: "Line 8: Egress east.")
+                            NineLineText(text: "Line 9: Remarks and restrictions, danger close, final attack heading 260 to 300.")
+                        }
+                        .padding(15)
+                    }
+                    .background(AppColors.transcriptBackground)
+                    .padding(.horizontal, 15)
+                    .padding(.bottom, 15)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+            .buttonStyle(PlainButtonStyle())
+        }
+        .background(Color.black)
+    }
+}
+
+// MARK: - Map Section (Bottom Half)
+struct MapSection: View {
+    @ObservedObject var viewModel: MainViewModel
+    
+    var body: some View {
+        Button(action: {
+            viewModel.navigateTo(.map)
+        }) {
+            ZStack {
+                // Map Placeholder
+                Color(red: 0.8, green: 0.8, blue: 0.8)
+                
+                VStack {
+                    Image(systemName: "location.north.fill")
+                        .font(.system(size: 80))
+                        .foregroundColor(.black)
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+        .buttonStyle(PlainButtonStyle())
+    }
+}
+
+// MARK: - Helper Views
+struct TranscriptLine: View {
+    let text: String
+    
+    var body: some View {
+        Text(text)
+            .font(.system(size: 16))
+            .foregroundColor(.white)
+            .fixedSize(horizontal: false, vertical: true)
+    }
+}
+
+struct NineLineText: View {
+    let text: String
+    
+    var body: some View {
+        Text(text)
+            .font(.system(size: 16))
+            .foregroundColor(.white)
+            .fixedSize(horizontal: false, vertical: true)
+    }
+}
