@@ -1,32 +1,40 @@
-//
-//  JTACApp.swift
-//  JTAC
-//
-//  Created by admin on 1/27/26.
-//
-
 import SwiftUI
-import SwiftData
 
 @main
-struct JTACApp: App {
-    var sharedModelContainer: ModelContainer = {
-        let schema = Schema([
-            Item.self,
-        ])
-        let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
-
-        do {
-            return try ModelContainer(for: schema, configurations: [modelConfiguration])
-        } catch {
-            fatalError("Could not create ModelContainer: \(error)")
-        }
-    }()
-
+struct MilitaryRadioApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .preferredColorScheme(.dark)
         }
-        .modelContainer(sharedModelContainer)
+    }
+}
+
+struct ContentView: View {
+    @StateObject private var viewModel = MainViewModel()
+    
+    var body: some View {
+        ZStack {
+            Color.black.ignoresSafeArea()
+            
+            // Main navigation container
+            Group {
+                switch viewModel.currentScreen {
+                case .main:
+                    MainView(viewModel: viewModel)
+                        .transition(.opacity)
+                case .liveTranscript:
+                    LiveTranscriptView(viewModel: viewModel)
+                        .transition(.move(edge: .trailing).combined(with: .opacity))
+                case .nineLine:
+                    NineLineView(viewModel: viewModel)
+                        .transition(.move(edge: .trailing).combined(with: .opacity))
+                case .map:
+                    MapView(viewModel: viewModel)
+                        .transition(.move(edge: .trailing).combined(with: .opacity))
+                }
+            }
+            .animation(.easeInOut(duration: 0.3), value: viewModel.currentScreen)
+        }
     }
 }

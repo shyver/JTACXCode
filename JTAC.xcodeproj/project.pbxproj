@@ -8,13 +8,23 @@
 
 /* Begin PBXBuildFile section */
 		846626ED2F297042002935DE /* JTACApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 846626EC2F297042002935DE /* JTACApp.swift */; };
-		846626EF2F297042002935DE /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 846626EE2F297042002935DE /* ContentView.swift */; };
 		846626F12F297042002935DE /* Item.swift in Sources */ = {isa = PBXBuildFile; fileRef = 846626F02F297042002935DE /* Item.swift */; };
 		846626F32F297044002935DE /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 846626F22F297044002935DE /* Assets.xcassets */; };
 		846626F72F297044002935DE /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 846626F62F297044002935DE /* Preview Assets.xcassets */; };
 		846627012F297044002935DE /* JTACTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 846627002F297044002935DE /* JTACTests.swift */; };
 		8466270B2F297044002935DE /* JTACUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8466270A2F297044002935DE /* JTACUITests.swift */; };
 		8466270D2F297044002935DE /* JTACUITestsLaunchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8466270C2F297044002935DE /* JTACUITestsLaunchTests.swift */; };
+		8466271B2F297BD2002935DE /* AppNavigation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8466271A2F297BD2002935DE /* AppNavigation.swift */; };
+		8466271E2F297C62002935DE /* MainViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8466271D2F297C62002935DE /* MainViewModel.swift */; };
+		846627212F297CCA002935DE /* MainView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 846627202F297CCA002935DE /* MainView.swift */; };
+		846627232F297D06002935DE /* LiveTranscriptView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 846627222F297D06002935DE /* LiveTranscriptView.swift */; };
+		846627252F297D32002935DE /* NineLineView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 846627242F297D32002935DE /* NineLineView.swift */; };
+		846627272F297D5F002935DE /* MapView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 846627262F297D5F002935DE /* MapView.swift */; };
+		8466272A2F297DB5002935DE /* SectionCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 846627292F297DB5002935DE /* SectionCard.swift */; };
+		8466272C2F297DD8002935DE /* MinimizeButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8466272B2F297DD8002935DE /* MinimizeButton.swift */; };
+		8466272E2F297DFE002935DE /* StatusBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8466272D2F297DFE002935DE /* StatusBar.swift */; };
+		846627302F297E25002935DE /* ActionButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8466272F2F297E25002935DE /* ActionButton.swift */; };
+		846627332F297E67002935DE /* AppColors.swift in Sources */ = {isa = PBXBuildFile; fileRef = 846627322F297E67002935DE /* AppColors.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -37,7 +47,6 @@
 /* Begin PBXFileReference section */
 		846626E92F297042002935DE /* JTAC.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = JTAC.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		846626EC2F297042002935DE /* JTACApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JTACApp.swift; sourceTree = "<group>"; };
-		846626EE2F297042002935DE /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		846626F02F297042002935DE /* Item.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Item.swift; sourceTree = "<group>"; };
 		846626F22F297044002935DE /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		846626F42F297044002935DE /* JTAC.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = JTAC.entitlements; sourceTree = "<group>"; };
@@ -47,6 +56,17 @@
 		846627062F297044002935DE /* JTACUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = JTACUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		8466270A2F297044002935DE /* JTACUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JTACUITests.swift; sourceTree = "<group>"; };
 		8466270C2F297044002935DE /* JTACUITestsLaunchTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JTACUITestsLaunchTests.swift; sourceTree = "<group>"; };
+		8466271A2F297BD2002935DE /* AppNavigation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppNavigation.swift; sourceTree = "<group>"; };
+		8466271D2F297C62002935DE /* MainViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainViewModel.swift; sourceTree = "<group>"; };
+		846627202F297CCA002935DE /* MainView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainView.swift; sourceTree = "<group>"; };
+		846627222F297D06002935DE /* LiveTranscriptView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveTranscriptView.swift; sourceTree = "<group>"; };
+		846627242F297D32002935DE /* NineLineView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NineLineView.swift; sourceTree = "<group>"; };
+		846627262F297D5F002935DE /* MapView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MapView.swift; sourceTree = "<group>"; };
+		846627292F297DB5002935DE /* SectionCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SectionCard.swift; sourceTree = "<group>"; };
+		8466272B2F297DD8002935DE /* MinimizeButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MinimizeButton.swift; sourceTree = "<group>"; };
+		8466272D2F297DFE002935DE /* StatusBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusBar.swift; sourceTree = "<group>"; };
+		8466272F2F297E25002935DE /* ActionButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActionButton.swift; sourceTree = "<group>"; };
+		846627322F297E67002935DE /* AppColors.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppColors.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -97,8 +117,12 @@
 		846626EB2F297042002935DE /* JTAC */ = {
 			isa = PBXGroup;
 			children = (
+				846627312F297E4B002935DE /* Utilities */,
+				846627282F297D98002935DE /* Components */,
+				8466271F2F297CB0002935DE /* Views */,
+				8466271C2F297C46002935DE /* ViewModels */,
+				846627192F297BA7002935DE /* Models */,
 				846626EC2F297042002935DE /* JTACApp.swift */,
-				846626EE2F297042002935DE /* ContentView.swift */,
 				846626F02F297042002935DE /* Item.swift */,
 				846626F22F297044002935DE /* Assets.xcassets */,
 				846626F42F297044002935DE /* JTAC.entitlements */,
@@ -130,6 +154,52 @@
 				8466270C2F297044002935DE /* JTACUITestsLaunchTests.swift */,
 			);
 			path = JTACUITests;
+			sourceTree = "<group>";
+		};
+		846627192F297BA7002935DE /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				8466271A2F297BD2002935DE /* AppNavigation.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		8466271C2F297C46002935DE /* ViewModels */ = {
+			isa = PBXGroup;
+			children = (
+				8466271D2F297C62002935DE /* MainViewModel.swift */,
+			);
+			path = ViewModels;
+			sourceTree = "<group>";
+		};
+		8466271F2F297CB0002935DE /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				846627202F297CCA002935DE /* MainView.swift */,
+				846627222F297D06002935DE /* LiveTranscriptView.swift */,
+				846627242F297D32002935DE /* NineLineView.swift */,
+				846627262F297D5F002935DE /* MapView.swift */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		846627282F297D98002935DE /* Components */ = {
+			isa = PBXGroup;
+			children = (
+				846627292F297DB5002935DE /* SectionCard.swift */,
+				8466272B2F297DD8002935DE /* MinimizeButton.swift */,
+				8466272D2F297DFE002935DE /* StatusBar.swift */,
+				8466272F2F297E25002935DE /* ActionButton.swift */,
+			);
+			path = Components;
+			sourceTree = "<group>";
+		};
+		846627312F297E4B002935DE /* Utilities */ = {
+			isa = PBXGroup;
+			children = (
+				846627322F297E67002935DE /* AppColors.swift */,
+			);
+			path = Utilities;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -262,9 +332,19 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				846626EF2F297042002935DE /* ContentView.swift in Sources */,
+				846627232F297D06002935DE /* LiveTranscriptView.swift in Sources */,
+				846627272F297D5F002935DE /* MapView.swift in Sources */,
+				846627252F297D32002935DE /* NineLineView.swift in Sources */,
+				846627332F297E67002935DE /* AppColors.swift in Sources */,
+				8466272C2F297DD8002935DE /* MinimizeButton.swift in Sources */,
+				8466271B2F297BD2002935DE /* AppNavigation.swift in Sources */,
 				846626F12F297042002935DE /* Item.swift in Sources */,
 				846626ED2F297042002935DE /* JTACApp.swift in Sources */,
+				846627212F297CCA002935DE /* MainView.swift in Sources */,
+				8466271E2F297C62002935DE /* MainViewModel.swift in Sources */,
+				8466272A2F297DB5002935DE /* SectionCard.swift in Sources */,
+				8466272E2F297DFE002935DE /* StatusBar.swift in Sources */,
+				846627302F297E25002935DE /* ActionButton.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
