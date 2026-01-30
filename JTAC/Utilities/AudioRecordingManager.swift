@@ -37,6 +37,17 @@ class AudioRecordingManager: NSObject, ObservableObject {
     // MARK: - Recording & Transcription
     
     func startRecording() throws {
+        // Check if running in simulator
+        #if targetEnvironment(simulator)
+        // For simulator, just simulate recording without actual audio
+        isRecording = true
+        // Simulate some transcription for testing
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
+            self?.transcribedText = "Simulated transcription in iOS Simulator..."
+        }
+        return
+        #endif
+        
         // Cancel any previous task
         recognitionTask?.cancel()
         recognitionTask = nil
@@ -64,6 +75,11 @@ class AudioRecordingManager: NSObject, ObservableObject {
         
         let inputNode = audioEngine.inputNode
         let recordingFormat = inputNode.outputFormat(forBus: 0)
+        
+        // Verify format is valid
+        guard recordingFormat.sampleRate > 0 && recordingFormat.channelCount > 0 else {
+            throw RecordingError.audioEngineFailed
+        }
         
         // Install tap on the audio engine
         inputNode.installTap(onBus: 0, bufferSize: 1024, format: recordingFormat) { buffer, _ in
@@ -97,6 +113,11 @@ class AudioRecordingManager: NSObject, ObservableObject {
     }
     
     func stopRecording() {
+        #if targetEnvironment(simulator)
+        isRecording = false
+        return
+        #endif
+        
         audioEngine?.stop()
         audioEngine?.inputNode.removeTap(onBus: 0)
         recognitionRequest?.endAudio()
