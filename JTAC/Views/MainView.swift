@@ -29,6 +29,7 @@ struct MainView: View {
             // StatusBar overlay at the top
             VStack {
                 StatusBar()
+                    .padding(.top, 20)
                 Spacer()
             }
         }
