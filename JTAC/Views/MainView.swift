@@ -8,8 +8,6 @@ struct MainView: View {
             Color.black.ignoresSafeArea()
             
             VStack(spacing: 0) {
-                StatusBar()
-                
                 VStack(spacing: 0) {
                     // Top half: Live Transcript (left) + 9 Line (right)
                     HStack(spacing: 0) {
@@ -27,6 +25,9 @@ struct MainView: View {
                     MapSection(viewModel: viewModel)
                         .frame(maxWidth: .infinity)
                         .frame(height: UIScreen.main.bounds.height * 0.5)
+                }
+                .safeAreaInset(edge: .top) {
+                    StatusBar()
                 }
             }
         }

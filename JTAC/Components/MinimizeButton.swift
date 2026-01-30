@@ -7,8 +7,6 @@ struct MinimizeButton: View {
         Button(action: action) {
             HStack(spacing: 10) {
                 Image(systemName: "arrow.down.right.and.arrow.up.left")
-                    .font(.system(size: 24))
-
             }
             .foregroundColor(.white.opacity(0.7))
             .frame(width: 380, height: 80)
