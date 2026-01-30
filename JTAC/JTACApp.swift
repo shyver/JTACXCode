@@ -19,7 +19,7 @@ struct ContentView: View {
             
             // Main navigation container
             Group {
-                switch viewModel.currentScreen {
+                switch viewModel.currentView {
                 case .main:
                     MainView(viewModel: viewModel)
                         .transition(.opacity)
@@ -34,7 +34,7 @@ struct ContentView: View {
                         .transition(.move(edge: .trailing).combined(with: .opacity))
                 }
             }
-            .animation(.easeInOut(duration: 0.3), value: viewModel.currentScreen)
+            .animation(.easeInOut(duration: 0.3), value: viewModel.currentView)
         }
     }
 }
