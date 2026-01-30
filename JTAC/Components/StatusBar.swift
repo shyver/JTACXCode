@@ -2,7 +2,6 @@ import SwiftUI
 
 struct StatusBar: View {
     @ObservedObject var viewModel: MainViewModel
-    @StateObject private var permissionManager = MicrophonePermissionManager()
     @State private var isRecording = false
     
     var body: some View {
@@ -36,10 +35,10 @@ struct StatusBar: View {
         .padding(.horizontal, 20)
         .padding(.vertical, 15)
         .background(Color.black)
-        .alert("Microphone Access Denied", isPresented: $permissionManager.showPermissionDeniedAlert) {
+        .alert("Microphone Access Denied", isPresented: $viewModel.microphoneManager.showPermissionDeniedAlert) {
             Button("Cancel", role: .cancel) {}
             Button("Open Settings") {
-                permissionManager.openSettings()
+                viewModel.microphoneManager.openSettings()
             }
         } message: {
             Text("Please enable microphone access in Settings to use recording features.")
@@ -52,13 +51,13 @@ struct StatusBar: View {
             stopRecording()
         } else {
             // Check permission before starting
-            switch permissionManager.permissionStatus {
+            switch viewModel.microphoneManager.permissionStatus {
             case .granted:
                 startRecording()
             case .denied:
-                permissionManager.showPermissionDeniedAlert = true
+                viewModel.microphoneManager.showPermissionDeniedAlert = true
             case .undetermined:
-                permissionManager.requestPermission { granted in
+                viewModel.microphoneManager.requestPermission { granted in
                     if granted {
                         startRecording()
                     }
