@@ -7,7 +7,7 @@ class MainViewModel: ObservableObject {
     @Published var liveTranscript = ""
     @Published var transcriptHistory: [TranscriptEntry] = []
     
-    let permissionManager = PermissionManager()
+    @Published var permissionManager = PermissionManager()
     let audioManager = AudioRecordingManager()
     
     private var cancellables = Set<AnyCancellable>()
