@@ -8,7 +8,7 @@ struct MapView: View {
             Color.black.ignoresSafeArea()
             
             VStack(spacing: 0) {
-                StatusBar()
+                StatusBar(viewModel: viewModel)
                 
                 VStack(spacing: 0) {
                     Spacer()

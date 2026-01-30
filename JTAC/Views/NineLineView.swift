@@ -23,7 +23,7 @@ Line 9: Remarks and restrictions, danger close, final attack heading 260 to 300.
             Color.black.ignoresSafeArea()
             
             VStack(spacing: 0) {
-                StatusBar()
+                StatusBar(viewModel: viewModel)
                 
                 HStack(spacing: 0) {
                     // Left sidebar

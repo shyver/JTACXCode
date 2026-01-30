@@ -8,7 +8,7 @@ struct LiveTranscriptView: View {
             Color.black.ignoresSafeArea()
             
             VStack(spacing: 0) {
-                StatusBar()
+                StatusBar(viewModel: viewModel)
                 
                 VStack(alignment: .leading, spacing: 20) {
                     Text("Live Radio Transcript")
