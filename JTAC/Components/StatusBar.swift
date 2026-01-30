@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct StatusBar: View {
-    @State private var isRecording = true
+    @State private var isRecording = false
     
     var body: some View {
         HStack {
