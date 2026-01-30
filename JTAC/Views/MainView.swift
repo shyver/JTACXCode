@@ -8,6 +8,9 @@ struct MainView: View {
             Color.black.ignoresSafeArea()
             
             VStack(spacing: 0) {
+                // StatusBar at the top
+                StatusBar()
+                
                 // Top half: Live Transcript (left) + 9 Line (right)
                 HStack(spacing: 0) {
                     // Live Radio Transcript Section (Top Left)
@@ -22,15 +25,7 @@ struct MainView: View {
                 
                 // Bottom half: Map
                 MapSection(viewModel: viewModel)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: UIScreen.main.bounds.height * 0.5)
-            }
-            
-            // StatusBar overlay at the top
-            VStack {
-                StatusBar()
-                    .padding(.top, 20)
-                Spacer()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
     }
