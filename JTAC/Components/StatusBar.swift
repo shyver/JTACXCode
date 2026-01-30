@@ -1,6 +1,8 @@
 import SwiftUI
 
 struct StatusBar: View {
+    @State private var isRecording = true
+    
     var body: some View {
         HStack {
             // GPS indicator
@@ -14,15 +16,20 @@ struct StatusBar: View {
             
             Spacer()
             
-            // Recording indicator
-            HStack(spacing: 8) {
-                Text("Recording")
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundColor(.white)
-                Circle()
-                    .fill(Color.red)
-                    .frame(width: 16, height: 16)
+            // Recording button
+            Button(action: {
+                isRecording.toggle()
+            }) {
+                HStack(spacing: 8) {
+                    Text(isRecording ? "Recording" : "Record")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundColor(.white)
+                    Circle()
+                        .fill(Color.red)
+                        .frame(width: 16, height: 16)
+                }
             }
+            .buttonStyle(PlainButtonStyle())
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 15)
