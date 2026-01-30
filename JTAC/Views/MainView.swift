@@ -37,12 +37,28 @@ struct LiveTranscriptSection: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Text("Live Radio Transcript")
-                .font(.system(size: 24, weight: .bold))
-                .foregroundColor(.white)
-                .padding(.horizontal, 15)
-                .padding(.top, 15)
-                .padding(.bottom, 10)
+            HStack {
+                Text("Live Radio Transcript")
+                    .font(.system(size: 24, weight: .bold))
+                    .foregroundColor(.white)
+                
+                Spacer()
+                
+                // Show recording indicator here too
+                if viewModel.isRecording {
+                    HStack(spacing: 6) {
+                        Circle()
+                            .fill(Color.red)
+                            .frame(width: 10, height: 10)
+                        Text("LIVE")
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundColor(.red)
+                    }
+                }
+            }
+            .padding(.horizontal, 15)
+            .padding(.top, 15)
+            .padding(.bottom, 10)
             
             // Tappable transcript area
             Button(action: {
@@ -50,14 +66,29 @@ struct LiveTranscriptSection: View {
             }) {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 12) {
-                        TranscriptLine(text: "Axeman two-one this is Hawg one-one checking in, two by GBU-12, 30 mike-mike, playtime fifteen, fuel six point two.")
-                        TranscriptLine(text: "Hawg one-one roger, standby for tasking.")
-                        TranscriptLine(text: "...break...")
-                        TranscriptLine(text: "Hawg one-one type one control, troops in contact, grid three two Sierra November Bravo four three eight two one seven six two one nine, mark red smoke, say when tally.")
-                        TranscriptLine(text: "Tally smoke.")
-                        TranscriptLine(text: "Friendlies south four hundred meters, danger close, request immediate.")
-                        TranscriptLine(text: "Copy danger close, heading two seven zero, in hot.")
-                        TranscriptLine(text: "Cleared hot cleared hot.")
+                        // Show live transcript if recording
+                        if viewModel.isRecording && !viewModel.liveTranscript.isEmpty {
+                            TranscriptLine(text: viewModel.liveTranscript)
+                                .padding(8)
+                                .background(Color.blue.opacity(0.2))
+                                .cornerRadius(8)
+                        }
+                        
+                        // Show transcript history
+                        ForEach(viewModel.transcriptHistory.reversed()) { entry in
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(entry.timestamp, style: .time)
+                                    .font(.system(size: 12))
+                                    .foregroundColor(.gray)
+                                TranscriptLine(text: entry.text)
+                            }
+                        }
+                        
+                        // Placeholder if nothing
+                        if !viewModel.isRecording && viewModel.transcriptHistory.isEmpty {
+                            TranscriptLine(text: "Press the record button to start transcribing...")
+                                .foregroundColor(.gray)
+                        }
                     }
                     .padding(15)
                 }
@@ -66,7 +97,7 @@ struct LiveTranscriptSection: View {
             }
             .buttonStyle(PlainButtonStyle())
             
-            // Action buttons (NOT tappable for expansion)
+            // Action buttons
             HStack(spacing: 10) {
                 ActionButton(title: "Confirm", color: AppColors.confirmGreen)
                     .frame(height: 60)
@@ -77,7 +108,6 @@ struct LiveTranscriptSection: View {
             }
             .padding(.horizontal, 15)
             .padding(.vertical, 10)
-            .allowsHitTesting(false) // Buttons don't expand
         }
         .background(Color.black)
     }

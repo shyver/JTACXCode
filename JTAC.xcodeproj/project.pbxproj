@@ -26,6 +26,8 @@
 		846627302F297E25002935DE /* ActionButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8466272F2F297E25002935DE /* ActionButton.swift */; };
 		846627332F297E67002935DE /* AppColors.swift in Sources */ = {isa = PBXBuildFile; fileRef = 846627322F297E67002935DE /* AppColors.swift */; };
 		846627352F2CDA01002935DE /* MicrophonePermissionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 846627362F2CDA01002935DE /* MicrophonePermissionManager.swift */; };
+		846627372F2CDA20002935DE /* AudioRecordingManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 846627382F2CDA20002935DE /* AudioRecordingManager.swift */; };
+		846627392F2CDA30002935DE /* PermissionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8466273A2F2CDA30002935DE /* PermissionManager.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -70,6 +72,8 @@
 		846627322F297E67002935DE /* AppColors.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppColors.swift; sourceTree = "<group>"; };
 		846627342F2CD9C1002935DE /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		846627362F2CDA01002935DE /* MicrophonePermissionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MicrophonePermissionManager.swift; sourceTree = "<group>"; };
+		846627382F2CDA20002935DE /* AudioRecordingManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioRecordingManager.swift; sourceTree = "<group>"; };
+		8466273A2F2CDA30002935DE /* PermissionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionManager.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -203,6 +207,8 @@
 			children = (
 				846627322F297E67002935DE /* AppColors.swift */,
 				846627362F2CDA01002935DE /* MicrophonePermissionManager.swift */,
+				846627382F2CDA20002935DE /* AudioRecordingManager.swift */,
+				8466273A2F2CDA30002935DE /* PermissionManager.swift */,
 			);
 			path = Utilities;
 			sourceTree = "<group>";
@@ -351,6 +357,8 @@
 				8466272E2F297DFE002935DE /* StatusBar.swift in Sources */,
 				846627302F297E25002935DE /* ActionButton.swift in Sources */,
 				846627352F2CDA01002935DE /* MicrophonePermissionManager.swift in Sources */,
+				846627372F2CDA20002935DE /* AudioRecordingManager.swift in Sources */,
+				846627392F2CDA30002935DE /* PermissionManager.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

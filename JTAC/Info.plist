@@ -10,5 +10,7 @@
 	<false/>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>This app requires microphone access to record and transcribe radio communications.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>This app requires speech recognition to transcribe radio communications in real-time.</string>
 </dict>
 </plist>

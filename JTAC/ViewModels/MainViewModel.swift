@@ -4,14 +4,41 @@ import Combine
 class MainViewModel: ObservableObject {
     @Published var currentView: ViewType = .main
     @Published var isRecording = false
+    @Published var liveTranscript = ""
+    @Published var transcriptHistory: [TranscriptEntry] = []
     
-    @Published var microphoneManager = MicrophonePermissionManager()
+    let permissionManager = PermissionManager()
+    let audioManager = AudioRecordingManager()
+    
+    private var cancellables = Set<AnyCancellable>()
     
     enum ViewType {
         case main
         case liveTranscript
         case nineLine
         case map
+    }
+    
+    struct TranscriptEntry: Identifiable {
+        let id = UUID()
+        let text: String
+        let timestamp: Date
+    }
+    
+    init() {
+        // Subscribe to audio manager's transcribed text
+        audioManager.$transcribedText
+            .sink { [weak self] text in
+                self?.liveTranscript = text
+            }
+            .store(in: &cancellables)
+        
+        // Subscribe to recording status
+        audioManager.$isRecording
+            .sink { [weak self] recording in
+                self?.isRecording = recording
+            }
+            .store(in: &cancellables)
     }
     
     func navigateTo(_ view: ViewType) {
@@ -24,40 +51,49 @@ class MainViewModel: ObservableObject {
     
     func toggleRecording() {
         if isRecording {
-            // Stop recording
             stopRecording()
         } else {
-            // Check permission before starting recording
             startRecordingWithPermission()
         }
     }
     
     private func startRecordingWithPermission() {
-        switch microphoneManager.permissionStatus {
-        case .granted:
+        // Check if we have all permissions
+        if permissionManager.hasAllPermissions() {
             startRecording()
-        case .denied:
-            microphoneManager.showPermissionDeniedAlert = true
-        case .undetermined:
-            microphoneManager.requestPermission { [weak self] granted in
+        } else {
+            // Request permissions
+            permissionManager.requestAllPermissions { [weak self] granted in
                 if granted {
                     self?.startRecording()
                 }
             }
-        @unknown default:
-            break
         }
     }
     
     private func startRecording() {
-        isRecording = true
-        // Add your recording logic here
-        print("Started recording...")
+        do {
+            try audioManager.startRecording()
+            print("Started recording and transcription...")
+        } catch {
+            print("Failed to start recording: \(error.localizedDescription)")
+        }
     }
     
     private func stopRecording() {
-        isRecording = false
-        // Add your stop recording logic here
+        audioManager.stopRecording()
+        
+        // Save the transcript to history
+        if !liveTranscript.isEmpty {
+            let entry = TranscriptEntry(text: liveTranscript, timestamp: Date())
+            transcriptHistory.append(entry)
+        }
+        
         print("Stopped recording...")
+    }
+    
+    // Method to clear current transcript
+    func clearLiveTranscript() {
+        liveTranscript = ""
     }
 }
