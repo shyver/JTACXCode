@@ -9,7 +9,7 @@ struct MainView: View {
             
             VStack(spacing: 0) {
                 // StatusBar at the top
-                StatusBar()
+                StatusBar(viewModel: viewModel)
                 
                 // Top half: Live Transcript (left) + 9 Line (right)
                 HStack(spacing: 0) {
