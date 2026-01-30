@@ -5,7 +5,7 @@ class MainViewModel: ObservableObject {
     @Published var currentView: ViewType = .main
     @Published var isRecording = false
     
-    let microphoneManager = MicrophonePermissionManager()
+    @Published var microphoneManager = MicrophonePermissionManager()
     
     enum ViewType {
         case main

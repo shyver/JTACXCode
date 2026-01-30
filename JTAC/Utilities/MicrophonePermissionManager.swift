@@ -2,7 +2,13 @@ import AVFoundation
 import SwiftUI
 
 class MicrophonePermissionManager: ObservableObject {
-    @Published var permissionStatus: AVAudioSession.RecordPermission = .undetermined
+    enum PermissionStatus {
+        case undetermined
+        case granted
+        case denied
+    }
+    
+    @Published var permissionStatus: PermissionStatus = .undetermined
     @Published var showPermissionDeniedAlert = false
     
     init() {
@@ -10,13 +16,23 @@ class MicrophonePermissionManager: ObservableObject {
     }
     
     func checkPermission() {
-        permissionStatus = AVAudioApplication.shared.recordPermission
+        let status = AVAudioApplication.shared.recordPermission
+        switch status {
+        case .undetermined:
+            permissionStatus = .undetermined
+        case .granted:
+            permissionStatus = .granted
+        case .denied:
+            permissionStatus = .denied
+        @unknown default:
+            permissionStatus = .undetermined
+        }
     }
     
     func requestPermission(completion: @escaping (Bool) -> Void) {
         AVAudioApplication.requestRecordPermission { granted in
             DispatchQueue.main.async {
-                self.permissionStatus = granted ? AVAudioSession.RecordPermission.granted : AVAudioSession.RecordPermission.denied
+                self.permissionStatus = granted ? .granted : .denied
                 if !granted {
                     self.showPermissionDeniedAlert = true
                 }
