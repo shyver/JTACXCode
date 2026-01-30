@@ -8,27 +8,28 @@ struct MainView: View {
             Color.black.ignoresSafeArea()
             
             VStack(spacing: 0) {
-                VStack(spacing: 0) {
-                    // Top half: Live Transcript (left) + 9 Line (right)
-                    HStack(spacing: 0) {
-                        // Live Radio Transcript Section (Top Left)
-                        LiveTranscriptSection(viewModel: viewModel)
-                            .frame(maxWidth: .infinity)
-                        
-                        // 9 Line Section (Top Right)
-                        NineLineSection(viewModel: viewModel)
-                            .frame(maxWidth: .infinity)
-                    }
-                    .frame(height: UIScreen.main.bounds.height * 0.5)
-                    
-                    // Bottom half: Map
-                    MapSection(viewModel: viewModel)
+                // Top half: Live Transcript (left) + 9 Line (right)
+                HStack(spacing: 0) {
+                    // Live Radio Transcript Section (Top Left)
+                    LiveTranscriptSection(viewModel: viewModel)
                         .frame(maxWidth: .infinity)
-                        .frame(height: UIScreen.main.bounds.height * 0.5)
+                    
+                    // 9 Line Section (Top Right)
+                    NineLineSection(viewModel: viewModel)
+                        .frame(maxWidth: .infinity)
                 }
-                .safeAreaInset(edge: .top) {
-                    StatusBar()
-                }
+                .frame(height: UIScreen.main.bounds.height * 0.5)
+                
+                // Bottom half: Map
+                MapSection(viewModel: viewModel)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: UIScreen.main.bounds.height * 0.5)
+            }
+            
+            // StatusBar overlay at the top
+            VStack {
+                StatusBar()
+                Spacer()
             }
         }
     }
