@@ -62,8 +62,6 @@ struct StatusBar: View {
                         startRecording()
                     }
                 }
-            @unknown default:
-                break
             }
         }
     }

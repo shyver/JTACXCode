@@ -18,6 +18,10 @@ class MainViewModel: ObservableObject {
         currentView = view
     }
     
+    func returnToMain() {
+        currentView = .main
+    }
+    
     func toggleRecording() {
         if isRecording {
             // Stop recording
