@@ -17,23 +17,55 @@ struct LiveTranscriptView: View {
                         .padding(.horizontal, 20)
                         .padding(.top, 20)
                     
-                    ScrollView {
-                        VStack(alignment: .leading, spacing: 15) {
-                            TranscriptMessage(text: "Axeman two-one this is Hawg one-one checking in, two by GBU-12, 30 mike-mike, playtime fifteen, fuel six point two.")
-                            TranscriptMessage(text: "Hawg one-one roger, standby for tasking.")
-                            TranscriptMessage(text: "...break...")
-                            TranscriptMessage(text: "Hawg one-one type one control, troops in contact, grid three two Sierra November Bravo four three eight two one seven six two one nine, mark red smoke, say when tally.")
-                            TranscriptMessage(text: "Tally smoke.")
-                            TranscriptMessage(text: "Friendlies south four hundred meters, danger close, request immediate.")
-                            TranscriptMessage(text: "Copy danger close, heading two seven zero, in hot.")
-                            TranscriptMessage(text: "Cleared hot cleared hot.")
-                            TranscriptMessage(text: "Rifle.")
-                            TranscriptMessage(text: "Splash.")
-                            TranscriptMessage(text: "Good hit good hit, one vehicle destroyed, second moving north.")
-                            TranscriptMessage(text: "Copy, re-attack same grid.")
+                    ScrollViewReader { proxy in
+                        ScrollView {
+                            VStack(alignment: .leading, spacing: 15) {
+                                // Live partial text currently being transcribed
+                                if !viewModel.liveTranscript.isEmpty {
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        HStack(spacing: 6) {
+                                            Circle()
+                                                .fill(Color.red)
+                                                .frame(width: 8, height: 8)
+                                            Text("LIVE")
+                                                .font(.system(size: 12, weight: .bold))
+                                                .foregroundColor(.red)
+                                        }
+                                        TranscriptMessage(text: viewModel.liveTranscript)
+                                            .opacity(0.7)
+                                    }
+                                    .padding(8)
+                                    .background(Color.blue.opacity(0.15))
+                                    .cornerRadius(8)
+                                }
+
+                                // Completed segments from history, newest first
+                                ForEach(viewModel.transcriptHistory.reversed()) { entry in
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        Text(entry.timestamp, style: .time)
+                                            .font(.system(size: 12))
+                                            .foregroundColor(.gray)
+                                        TranscriptMessage(text: entry.text)
+                                    }
+                                }
+
+                                // Placeholder when nothing yet
+                                if viewModel.transcriptHistory.isEmpty && viewModel.liveTranscript.isEmpty {
+                                    TranscriptMessage(text: "Press the record button to start transcribing...")
+                                        .foregroundColor(.gray)
+                                }
+
+                                Color.clear.frame(height: 1).id("bottom")
+                            }
+                            .padding(.horizontal, 20)
+                            .padding(.bottom, 20)
                         }
-                        .padding(.horizontal, 20)
-                        .padding(.bottom, 20)
+                        .onChange(of: viewModel.transcriptHistory.count) { _ in
+                            withAnimation { proxy.scrollTo("bottom") }
+                        }
+                        .onChange(of: viewModel.liveTranscript) { _ in
+                            withAnimation { proxy.scrollTo("bottom") }
+                        }
                     }
                     .background(AppColors.transcriptBackground)
                     .cornerRadius(12)
