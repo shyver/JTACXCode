@@ -292,7 +292,7 @@
 					};
 				};
 			};
-			buildConfigurationList = 846626E42F297042002935DE /* Build configuration list for PBXProject "		" */;
+			buildConfigurationList = 846626E42F297042002935DE /* Build configuration list for PBXProject "JTAC" */;
 			compatibilityVersion = "Xcode 14.0";
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
@@ -518,6 +518,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "\"JTAC/Preview Content\"";
+				DEVELOPMENT_TEAM = LV9U37SPCY;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = JTAC/Info.plist;
@@ -556,6 +557,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "\"JTAC/Preview Content\"";
+				DEVELOPMENT_TEAM = LV9U37SPCY;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = JTAC/Info.plist;
@@ -674,7 +676,7 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		846626E42F297042002935DE /* Build configuration list for PBXProject "		" */ = {
+		846626E42F297042002935DE /* Build configuration list for PBXProject "JTAC" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				8466270E2F297044002935DE /* Debug */,

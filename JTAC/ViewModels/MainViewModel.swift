@@ -26,19 +26,25 @@ class MainViewModel: ObservableObject {
     }
     
     init() {
-        // Subscribe to audio manager's transcribed text
+        // Mirror live partial text into the view
         audioManager.$transcribedText
             .sink { [weak self] text in
                 self?.liveTranscript = text
             }
             .store(in: &cancellables)
-        
-        // Subscribe to recording status
+
+        // Mirror recording state
         audioManager.$isRecording
             .sink { [weak self] recording in
                 self?.isRecording = recording
             }
             .store(in: &cancellables)
+
+        // Each pause-terminated segment arrives here and becomes its own history entry
+        audioManager.onSegmentCompleted = { [weak self] text in
+            let entry = TranscriptEntry(text: text, timestamp: Date())
+            self?.transcriptHistory.append(entry)
+        }
     }
     
     func navigateTo(_ view: ViewType) {
@@ -74,22 +80,15 @@ class MainViewModel: ObservableObject {
     private func startRecording() {
         do {
             try audioManager.startRecording()
-            print("Started recording and transcription...")
         } catch {
             print("Failed to start recording: \(error.localizedDescription)")
         }
     }
     
     private func stopRecording() {
+        // AudioRecordingManager.stopRecording() flushes any partial segment
+        // via onSegmentCompleted before tearing down, so no manual save needed here.
         audioManager.stopRecording()
-        
-        // Save the transcript to history
-        if !liveTranscript.isEmpty {
-            let entry = TranscriptEntry(text: liveTranscript, timestamp: Date())
-            transcriptHistory.append(entry)
-        }
-        
-        print("Stopped recording...")
     }
     
     // Method to clear current transcript
