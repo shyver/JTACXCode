@@ -71,6 +71,16 @@ class JTACViewModel: ObservableObject {
             lines.append("ABORT CODE   : \(val(cas.abortCode))")
             return lines.joined(separator: "\n")
 
+        case "SOF":
+            guard let s = report.safetyOfFlight, !s.isEmpty else { return "" }
+            func sofVal(_ v: String?) -> String { v ?? "/" }
+            return [
+                "1-THREATS                : \(sofVal(s.threats))",
+                "2-FRIENDLY ASSETS        : \(sofVal(s.friendlyAssets))",
+                "3-TERRAINS AND OBSTACLES : \(sofVal(s.terrainsObstacles))",
+                "4-EMERGENCY CONSIDERATIONS: \(sofVal(s.emergencyConsiderations))",
+            ].joined(separator: "\n")
+
         case "S. UPDATE":
             guard let s = report.situationUpdate, !s.isEmpty else { return "" }
             func val(_ v: String?) -> String { v ?? "//" }

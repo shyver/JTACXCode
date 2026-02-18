@@ -5,6 +5,7 @@ import Foundation
 struct JTACReport {
     var cas: CASData?
     var situationUpdate: SituationUpdate?
+    var safetyOfFlight: SafetyOfFlight?
     var nineLine: NineLine?
     var remarks: String?
     var restrictions: String?
@@ -14,11 +15,26 @@ struct JTACReport {
     var isEmpty: Bool {
         cas == nil &&
         situationUpdate == nil &&
+        safetyOfFlight == nil &&
         nineLine == nil &&
         remarks == nil &&
         restrictions == nil &&
         bda == nil &&
         gamePlan == nil
+    }
+}
+
+// MARK: - Safety of Flight
+
+struct SafetyOfFlight {
+    var threats:              String?   // 1 — threats to the aircraft
+    var friendlyAssets:       String?   // 2 — friendly aircraft/assets in the area
+    var terrainsObstacles:    String?   // 3 — terrain, wires, towers, obstacles
+    var emergencyConsiderations: String? // 4 — divert fields, FARP, SAR, bingo
+
+    var isEmpty: Bool {
+        threats == nil && friendlyAssets == nil &&
+        terrainsObstacles == nil && emergencyConsiderations == nil
     }
 }
 

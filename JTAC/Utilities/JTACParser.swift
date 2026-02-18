@@ -22,6 +22,7 @@ class JTACParser: ObservableObject {
         case restrictions
         case bda
         case gamePlan
+        case safetyOfFlight
     }
 
     // MARK: - Public API
@@ -193,6 +194,7 @@ class JTACParser: ObservableObject {
             .remarks:        scoreRemarks(lower),
             .restrictions:   scoreRestrictions(lower),
             .gamePlan:       scoreGamePlan(lower),
+            .safetyOfFlight: scoreSafetyOfFlight(lower),
         ]
 
         // Continuation bonus: current section gets +1 to break ties toward staying.
@@ -391,6 +393,102 @@ class JTACParser: ObservableObject {
         return score
     }
 
+    private func scoreSafetyOfFlight(_ lower: String) -> Int {
+        var score = 0
+        let strong = ["safety of flight", "sof brief", "safety brief",
+                      "flight safety", "emergency considerations",
+                      "friendly assets", "terrain and obstacles",
+                      "terrains and obstacles", "divert", "divert field",
+                      "bingo field", "no threats except"]
+        for t in strong where lower.contains(t) { score += 4 }
+
+        let medium = ["runway", "rwy", "unavailable", "not available",
+                      "farp", "search and rescue", "sar", "recovery",
+                      "obstacles", "wires", "towers", "high terrain",
+                      "threat aircraft", "no threats"]
+        for t in medium where lower.contains(t) { score += 2 }
+
+        return score
+    }
+
+    // MARK: - Safety of Flight Field Extraction
+
+    /// Parses a free-text Safety of Flight segment and populates SafetyOfFlight fields.
+    private func extractSafetyOfFlightFields(from segment: String) {
+        if report.safetyOfFlight == nil { report.safetyOfFlight = SafetyOfFlight() }
+        let lower = segment.lowercased()
+
+        // ── 1. THREATS ────────────────────────────────────────────────────────
+        if report.safetyOfFlight?.threats == nil {
+            let patterns: [String] = [
+                #"(?i)\b(?:1[\s\-\.]+)?threats?\s*[:\-]?\s*(.+?)(?:\.|,\s*(?:friendl|terrain|obstacle|emergency|divert)|$)"#,
+                #"(?i)\bno threats?\b(.{0,80}?)(?:\.|,|$)"#,
+            ]
+            for pat in patterns {
+                if let val = extractCapture(pat, in: segment, group: 1),
+                   !val.trimmingCharacters(in: .whitespaces).isEmpty {
+                    report.safetyOfFlight?.threats = val.trimmingCharacters(in: .whitespacesAndNewlines)
+                    break
+                }
+            }
+            // Bare "no threats" with no trailing content
+            if report.safetyOfFlight?.threats == nil && lower.contains("no threat") {
+                report.safetyOfFlight?.threats = "No threats"
+            }
+        }
+
+        // ── 2. FRIENDLY ASSETS ───────────────────────────────────────────────
+        if report.safetyOfFlight?.friendlyAssets == nil {
+            let patterns: [String] = [
+                #"(?i)\b(?:2[\s\-\.]+)?friendly\s+assets?\s*[:\-]?\s*(.+?)(?:\.|,\s*(?:threats?|terrain|obstacle|emergency|divert)|$)"#,
+                #"(?i)\bfriendly\s+air(?:craft)?\s+in\s+(?:the\s+)?area[:\s]+(.+?)(?:\.|,|$)"#,
+            ]
+            for pat in patterns {
+                if let val = extractCapture(pat, in: segment, group: 1),
+                   !val.trimmingCharacters(in: .whitespaces).isEmpty {
+                    report.safetyOfFlight?.friendlyAssets = val.trimmingCharacters(in: .whitespacesAndNewlines)
+                    break
+                }
+            }
+        }
+
+        // ── 3. TERRAINS AND OBSTACLES ─────────────────────────────────────────
+        if report.safetyOfFlight?.terrainsObstacles == nil {
+            let patterns: [String] = [
+                #"(?i)\b(?:3[\s\-\.]+)?terrain[s]?(?:\s+and)?\s+obstacles?\s*[:\-]?\s*(.+?)(?:\.|,\s*(?:threats?|friendl|emergency|divert)|$)"#,
+                #"(?i)\bobstacles?\s*[:\-]?\s*(.+?)(?:\.|,|$)"#,
+                #"(?i)\b(?:high\s+terrain|wires?|towers?|masts?)([^,\.]{0,80}?)(?:[,\.]|$)"#,
+            ]
+            for pat in patterns {
+                if let val = extractCapture(pat, in: segment, group: 1),
+                   !val.trimmingCharacters(in: .whitespaces).isEmpty {
+                    report.safetyOfFlight?.terrainsObstacles = val.trimmingCharacters(in: .whitespacesAndNewlines)
+                    break
+                }
+            }
+        }
+
+        // ── 4. EMERGENCY CONSIDERATIONS ──────────────────────────────────────
+        if report.safetyOfFlight?.emergencyConsiderations == nil {
+            let patterns: [String] = [
+                #"(?i)\b(?:4[\s\-\.]+)?emergency\s+considerations?\s*[:\-]?\s*(.+?)(?:\.|$)"#,
+                #"(?i)\bdivert(?:\s+field|\s+base|\s+airfield)?\s*[:\-]?\s*(.+?)(?:\.|,|$)"#,
+                #"(?i)\brwy\s+([\d/]+(?:\s+(?:is\s+)?(?:unavailable|not available|closed))?)"#,
+                #"(?i)\brunway\s+([\d/]+(?:\s+(?:is\s+)?(?:unavailable|not available|closed))?)"#,
+            ]
+            var parts: [String] = []
+            for pat in patterns {
+                if let val = extractCapture(pat, in: segment, group: 1),
+                   !val.trimmingCharacters(in: .whitespaces).isEmpty {
+                    parts.append(val.trimmingCharacters(in: .whitespacesAndNewlines))
+                }
+            }
+            if !parts.isEmpty {
+                report.safetyOfFlight?.emergencyConsiderations = parts.joined(separator: "; ")
+            }
+        }
+    }
+
     // ── Helpers ───────────────────────────────────────────────────────────────
 
     /// Counts how many explicit "line N" markers appear in the text.
@@ -453,6 +551,8 @@ class JTACParser: ObservableObject {
                                "initial point"]),          // IP = line 1 → implies nine-line
             (.bda,            ["battle damage assessment", "bda"]),
             (.gamePlan,       ["game plan",         "gameplan"]),
+            (.safetyOfFlight, ["safety of flight",  "sof brief",
+                               "safety brief",      "flight safety"]),
             (.restrictions,   ["restrictions"]),
             (.remarks,        ["remarks"]),
         ]
@@ -747,6 +847,8 @@ class JTACParser: ObservableObject {
                                "initial point"]),          // IP = line 1 → implies nine-line
             (.bda,            ["battle damage assessment", "bda"]),
             (.gamePlan,       ["game plan",         "gameplan"]),
+            (.safetyOfFlight, ["safety of flight",  "sof brief",
+                               "safety brief",      "flight safety"]),
             (.restrictions,   ["restrictions"]),
             (.remarks,        ["remarks"]),
         ]
@@ -804,6 +906,10 @@ class JTACParser: ObservableObject {
         case .gamePlan:
             report.gamePlan = join(report.gamePlan, trailing)
 
+        case .safetyOfFlight:
+            if report.safetyOfFlight == nil { report.safetyOfFlight = SafetyOfFlight() }
+            extractSafetyOfFlightFields(from: fullSegment)
+
         case .unknown:
             break
         }
@@ -833,6 +939,9 @@ class JTACParser: ObservableObject {
 
         case .gamePlan:
             report.gamePlan = join(report.gamePlan, segment)
+
+        case .safetyOfFlight:
+            extractSafetyOfFlightFields(from: segment)
 
         case .unknown:
             break

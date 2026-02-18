@@ -119,7 +119,7 @@ struct NineLineSection: View {
     @ObservedObject var jtacViewModel: JTACViewModel
     @State private var selectedCategory: String = "9 Line"
 
-    let categories = ["CAS", "S. UPDATE", "9 Line", "Remarks", "Restrictions", "BDA", "GamePlan"]
+    let categories = ["CAS", "SOF", "S. UPDATE", "9 Line", "Remarks", "Restrictions", "BDA", "GamePlan"]
 
     var body: some View {
         HStack(spacing: 0) {
