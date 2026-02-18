@@ -120,16 +120,15 @@ final class SpeechManager: NSObject, ObservableObject {
     }
 
     /// Ends the current recognition task and starts a fresh one.
-    /// Called automatically on phase change and after each completed segment.
+    /// Called from: silence cutoff (transcribedText already flushed),
+    ///              phase change (save in-progress text as committed prefix).
     private func cycleRecognitionTask() {
-        // Save any in-progress display text into committedText so the next
-        // task can prepend it.  (Silence cutoff already clears transcribedText
-        // before calling here, so this only has an effect on phase-change cycles.)
+        // On a phase change, transcribedText still holds the in-progress words.
+        // Save them as the committed prefix so the new task doesn't lose them.
+        // (Silence cutoff already cleared both before calling here.)
         let partial = transcribedText.trimmingCharacters(in: .whitespaces)
-        if !partial.isEmpty {
-            committedText = [committedText, partial]
-                .filter { !$0.isEmpty }
-                .joined(separator: " ")
+        if !partial.isEmpty && committedText.isEmpty {
+            committedText = partial
         }
 
         recognitionTask?.cancel()
@@ -258,11 +257,22 @@ final class SpeechManager: NSObject, ObservableObject {
                     // Full correction pipeline
                     let corrected = self.corrector.correct(result)
 
-                    // Prepend text from prior task cycles in this transmission.
-                    self.transcribedText = [self.committedText, corrected.text]
+                    // Prepend any committed prefix from a prior task cycle.
+                    // committedText is cleared once embedded here so it is
+                    // never double-counted by the silence cutoff.
+                    let combined = [self.committedText, corrected.text]
                         .map { $0.trimmingCharacters(in: .whitespaces) }
                         .filter { !$0.isEmpty }
                         .joined(separator: " ")
+
+                    // CRITICAL: never wipe what's already on screen.
+                    // iOS may emit an empty or shorter intermediate result
+                    // while it reconsiders — ignore those to prevent
+                    // the "text disappeared" glitch.
+                    if !combined.isEmpty {
+                        self.transcribedText = combined
+                        self.committedText = ""   // now embedded in transcribedText
+                    }
 
                     // Surface confidence alerts
                     if !corrected.lowConfidenceFlags.isEmpty {
@@ -272,17 +282,29 @@ final class SpeechManager: NSObject, ObservableObject {
                         self.criticalConfidenceAlert = true
                     }
 
-                    self.rescheduleSilenceCutoff()
+                    if result.isFinal {
+                        // iOS finished this task (time limit, noise, or normal end).
+                        // The user may still be speaking — cycle immediately so
+                        // continued words are captured rather than lost.
+                        // Save current display text as the committed prefix for
+                        // the replacement task; the silence timer handles the
+                        // actual segment cutoff as normal.
+                        let snapshot = self.transcribedText
+                        if !snapshot.isEmpty {
+                            self.committedText = snapshot
+                        }
+                        self.startNewRecognitionTask()
+                    } else {
+                        self.rescheduleSilenceCutoff()
+                    }
 
                 } else if error != nil, self.isRecording {
-                    // Task died mid-speech (iOS ~1 min limit or audio interruption).
-                    // Save whatever was displayed so the replacement task can
-                    // prepend it — this is what prevents the "text erased" bug.
-                    let partial = self.transcribedText.trimmingCharacters(in: .whitespaces)
-                    if !partial.isEmpty {
-                        self.committedText = [self.committedText, partial]
-                            .filter { !$0.isEmpty }
-                            .joined(separator: " ")
+                    // Task died with an error (audio interruption, session reset).
+                    // transcribedText already contains committedText embedded,
+                    // so save the whole display text as the new committed prefix.
+                    let snapshot = self.transcribedText.trimmingCharacters(in: .whitespaces)
+                    if !snapshot.isEmpty {
+                        self.committedText = snapshot
                     }
                     self.startNewRecognitionTask()
                 }
@@ -298,13 +320,15 @@ final class SpeechManager: NSObject, ObservableObject {
 
         let item = DispatchWorkItem { [weak self] in
             guard let self, self.isRecording else { return }
-            // Combine committed text (from any mid-task resets) with the
-            // current partial before firing the segment callback.
-            let text = [self.committedText, self.transcribedText]
-                .map { $0.trimmingCharacters(in: .whitespaces) }
-                .filter { !$0.isEmpty }
-                .joined(separator: " ")
-            guard !text.isEmpty else { return }
+            // committedText is embedded in transcribedText by the time silence
+            // fires (it was cleared on each result update).  Use transcribedText
+            // directly; drop any leftover committedText as a safety net.
+            let text = self.transcribedText.trimmingCharacters(in: .whitespaces)
+            guard !text.isEmpty else {
+                // Nothing to send — just ensure accumulators are clean.
+                self.committedText = ""
+                return
+            }
 
             self.transcribedText = ""
             self.committedText = ""   // segment is done — reset accumulator
