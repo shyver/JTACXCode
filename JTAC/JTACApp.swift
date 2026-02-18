@@ -27,7 +27,7 @@ struct ContentView: View {
                     LiveTranscriptView(viewModel: viewModel)
                         .transition(.move(edge: .trailing).combined(with: .opacity))
                 case .nineLine:
-                    NineLineView(viewModel: viewModel)
+                    NineLineView(viewModel: viewModel, jtacViewModel: viewModel.jtacViewModel)
                         .transition(.move(edge: .trailing).combined(with: .opacity))
                 case .map:
                     MapView(viewModel: viewModel)

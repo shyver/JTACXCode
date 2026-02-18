@@ -18,7 +18,7 @@ struct MainView: View {
                         .frame(maxWidth: .infinity)
                     
                     // 9 Line Section (Top Right)
-                    NineLineSection(viewModel: viewModel)
+                    NineLineSection(viewModel: viewModel, jtacViewModel: viewModel.jtacViewModel)
                         .frame(maxWidth: .infinity)
                 }
                 .frame(height: UIScreen.main.bounds.height * 0.5)
@@ -116,58 +116,64 @@ struct LiveTranscriptSection: View {
 // MARK: - 9 Line Section (Top Right)
 struct NineLineSection: View {
     @ObservedObject var viewModel: MainViewModel
+    @ObservedObject var jtacViewModel: JTACViewModel
     @State private var selectedCategory: String = "9 Line"
-    
+
     let categories = ["CAS", "S. UPDATE", "9 Line", "Remarks", "Restrictions", "BDA", "GamePlan"]
-    
+
     var body: some View {
         HStack(spacing: 0) {
-            // Left sidebar with category buttons (NOT tappable for expansion)
+            // Left sidebar — category switcher, does NOT expand
             VStack(spacing: 8) {
                 ForEach(categories, id: \.self) { category in
-                    Button(action: {
-                        selectedCategory = category
-                    }) {
-                        Text(category)
-                            .font(.system(size: 14, weight: selectedCategory == category ? .semibold : .regular))
-                            .foregroundColor(.white)
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 50)
-                            .background(selectedCategory == category ? AppColors.selectedCategory : AppColors.categoryButton)
-                            .cornerRadius(6)
+                    Button(action: { selectedCategory = category }) {
+                        HStack {
+                            Text(category)
+                                .font(.system(size: 14,
+                                              weight: selectedCategory == category ? .semibold : .regular))
+                                .foregroundColor(.white)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                            if jtacViewModel.hasData(for: category) {
+                                Circle().fill(Color.green).frame(width: 7, height: 7)
+                            }
+                        }
+                        .padding(.horizontal, 8)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 50)
+                        .background(selectedCategory == category
+                                    ? AppColors.selectedCategory
+                                    : AppColors.categoryButton)
+                        .cornerRadius(6)
                     }
-                    .allowsHitTesting(true) // Category buttons work but don't expand
                     .padding(.horizontal, 8)
                 }
                 Spacer()
             }
             .frame(width: 140)
             .background(AppColors.sidebarBackground)
-            
-            // Right content area (Tappable for expansion)
-            Button(action: {
-                viewModel.navigateTo(.nineLine)
-            }) {
+
+            // Right content area — tappable to expand, shows live report data
+            Button(action: { viewModel.navigateTo(.nineLine) }) {
                 VStack(alignment: .leading, spacing: 10) {
                     Text(selectedCategory)
                         .font(.system(size: 24, weight: .bold))
                         .foregroundColor(.white)
                         .padding(.top, 15)
                         .padding(.horizontal, 15)
-                    
+
+                    let text = jtacViewModel.content(for: selectedCategory)
                     ScrollView {
-                        VStack(alignment: .leading, spacing: 8) {
-                            NineLineText(text: "Line 1: IP Hammer.")
-                            NineLineText(text: "Line 2: Heading 270.")
-                            NineLineText(text: "Line 3: 8 decimal 5 miles.")
-                            NineLineText(text: "Line 4: Target elevation 1450 feet.")
-                            NineLineText(text: "Line 5: 2 BMPs in the open, grid 32S NB 43821 76219.")
-                            NineLineText(text: "Line 6: Mark by red smoke.")
-                            NineLineText(text: "Line 7: Friendlies 400 meters south.")
-                            NineLineText(text: "Line 8: Egress east.")
-                            NineLineText(text: "Line 9: Remarks and restrictions, danger close, final attack heading 260 to 300.")
+                        if text.isEmpty {
+                            NineLineText(text: "No data yet for \(selectedCategory).")
+                                .foregroundColor(.gray)
+                                .padding(15)
+                        } else {
+                            Text(text)
+                                .font(.system(size: 15))
+                                .foregroundColor(.white)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(15)
                         }
-                        .padding(15)
                     }
                     .background(AppColors.transcriptBackground)
                     .padding(.horizontal, 15)

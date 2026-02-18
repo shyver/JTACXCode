@@ -60,10 +60,10 @@ struct LiveTranscriptView: View {
                             .padding(.horizontal, 20)
                             .padding(.bottom, 20)
                         }
-                        .onChange(of: viewModel.transcriptHistory.count) { _ in
+                        .onChange(of: viewModel.transcriptHistory.count) {
                             withAnimation { proxy.scrollTo("bottom") }
                         }
-                        .onChange(of: viewModel.liveTranscript) { _ in
+                        .onChange(of: viewModel.liveTranscript) {
                             withAnimation { proxy.scrollTo("bottom") }
                         }
                     }

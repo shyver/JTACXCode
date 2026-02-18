@@ -9,6 +9,7 @@ class MainViewModel: ObservableObject {
     
     @Published var permissionManager = PermissionManager()
     let audioManager = AudioRecordingManager()
+    let jtacViewModel = JTACViewModel()
     
     private var cancellables = Set<AnyCancellable>()
     
@@ -40,10 +41,13 @@ class MainViewModel: ObservableObject {
             }
             .store(in: &cancellables)
 
-        // Each pause-terminated segment arrives here and becomes its own history entry
+        // Each pause-terminated segment arrives here, becomes a history entry,
+        // and is forwarded to JTACViewModel for structured parsing.
         audioManager.onSegmentCompleted = { [weak self] text in
+            guard let self else { return }
             let entry = TranscriptEntry(text: text, timestamp: Date())
-            self?.transcriptHistory.append(entry)
+            self.transcriptHistory.append(entry)
+            self.jtacViewModel.process(segment: text)
         }
     }
     
@@ -91,8 +95,10 @@ class MainViewModel: ObservableObject {
         audioManager.stopRecording()
     }
     
-    // Method to clear current transcript
+    // Method to clear current transcript and reset parsed data
     func clearLiveTranscript() {
         liveTranscript = ""
+        transcriptHistory.removeAll()
+        jtacViewModel.reset()
     }
 }
