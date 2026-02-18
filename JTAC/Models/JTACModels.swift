@@ -4,7 +4,7 @@ import Foundation
 
 struct JTACReport {
     var cas: CASData?
-    var situationUpdate: String?
+    var situationUpdate: SituationUpdate?
     var nineLine: NineLine?
     var remarks: String?
     var restrictions: String?
@@ -22,15 +22,39 @@ struct JTACReport {
     }
 }
 
+// MARK: - Situation Update (SITREP)
+
+struct SituationUpdate {
+    var threats:     String?   // e.g. "Small arms and possible MANPADS"
+    var targets:     String?   // enemy vehicles / forces description
+    var friendlies:  String?   // friendly positions (unit, direction, distance)
+    var arty:        String?   // artillery status (e.g. "1 COLD South 13km")
+    var clearance:   String?   // clearance authority callsign (e.g. "ODIN11")
+    var ordnance:    String?   // available ordnance (if stated)
+    var remarks:     String?   // free remarks / restrictions
+
+    var isEmpty: Bool {
+        threats == nil && targets == nil && friendlies == nil &&
+        arty == nil && clearance == nil && ordnance == nil && remarks == nil
+    }
+}
+
 // MARK: - CAS check-in
 
 struct CASData {
-    /// e.g. "Type 1", "Type 2", "Type 3"
-    var type: String?
-    /// e.g. "Type 1 Control"
-    var control: String?
-    /// Raw check-in text (weapons, playtime, fuel, etc.)
-    var checkIn: String?
+    var callsign:     String?   // e.g. "Viper 1-1"
+    var mission:      String?   // mission number / type
+    var aircraftType: String?   // e.g. "A-10C", "F-16C"
+    var posAndAlt:    String?   // position and altitude
+    var ordnance:     String?   // weapons load
+    var playtime:     String?   // time on station
+    var capes:        String?   // capabilities (e.g. FLIR, laser, NVG)
+    var laserCode:    String?   // 4-digit laser code
+    var vdlCode:      String?   // VDL / data-link code
+    var abortCode:    String?   // abort code word
+    // Control type extracted separately
+    var type:    String?        // "Type 1" / "Type 2" / "Type 3"
+    var control: String?        // "Type 1 Control" etc.
 }
 
 // MARK: - 9-Line brief

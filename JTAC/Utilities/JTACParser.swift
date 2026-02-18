@@ -44,6 +44,14 @@ class JTACParser: ObservableObject {
 
             for chunk in chunks {
                 if let section = chunk.section {
+                    // For CAS, the callsign/aircraft often precede the keyword
+                    // ("Axeman 2-1 this is Hawg 11 checking in...").  Run a
+                    // full-transmission extract BEFORE the chunk-only extract so
+                    // those pre-keyword fields are captured.
+                    if section == .cas {
+                        if report.cas == nil { report.cas = CASData() }
+                        extractCASFields(from: transmission)
+                    }
                     // Explicit keyword → always route there.
                     transition(to: section, trailing: chunk.trailing, fullSegment: chunk.text)
                 } else if let inferred = inferSection(for: chunk.text) {
@@ -237,21 +245,34 @@ class JTACParser: ObservableObject {
     // ── Situation Update / SITREP ─────────────────────────────────────────────
     private func scoreSitrep(_ lower: String) -> Int {
         var score = 0
+
+        // Explicit SITREP field labels — strongly indicate a structured update
+        let fieldLabels = ["threats:", "threat:", "targets:", "target:",
+                           "friendlies:", "arty:", "artillery:",
+                           "clearance:", "clearance authority",
+                           "ordnance:", "remarks:", "restrictions:"]
+        for t in fieldLabels where lower.contains(t) { score += 4 }
+
+        // High-confidence threat vocabulary
         let strong = ["troops in contact", "contact report",
                       "taking fire", "receiving fire", "under fire",
                       "small arms fire", "machine gun fire",
-                      "ied", "rpg", "vbied",
-                      "enemy forces", "enemy positioned", "hostile forces"]
+                      "manpads", "ied", "rpg", "vbied",
+                      "enemy forces", "enemy positioned", "hostile forces",
+                      "bmp", "btr", "technical", "dismounts"]
         for t in strong where lower.contains(t) { score += 3 }
 
         let medium = ["small arms", "machine gun", "mortar", "indirect fire",
                       "enemy position", "enemy moving", "enemy vehicle",
                       "engaged by", "contact at", "hostile", "insurgent",
-                      "taking contact", "in contact", "forces pinned"]
+                      "taking contact", "in contact", "forces pinned",
+                      "cold", "hot arty", "arty cold", "arty hot"]
         for t in medium where lower.contains(t) { score += 2 }
 
         let weak = ["vicinity", "located at", "grid", "moving toward",
-                    "currently", "at this time", "we have"]
+                    "currently", "at this time", "we have", "platoon",
+                    "section", "company", "battalion", "km", "meters south",
+                    "meters east", "meters west", "meters north"]
         for t in weak where lower.contains(t) { score += 1 }
 
         return score
@@ -505,10 +526,85 @@ class JTACParser: ObservableObject {
 
 
 
+    // MARK: - Structural Comma Insertion
+
+    /// Inserts commas at natural JTAC speech boundaries that the recognizer's
+    /// `addsPunctuation` misses. Runs on the raw `formattedString` before any
+    /// keyword detection or normalization rules.
+    ///
+    /// Targeted boundaries:
+    ///  - Before every "line N" label when something precedes it
+    ///  - After every "line N" label before its content
+    ///  - Before section-opening keywords when something precedes them
+    ///  - Between a number/phonetic word and the next distinct field group
+    private func insertCommas(_ input: String) -> String {
+        var s = input
+
+        let lineWords = "one|two|three|four|five|fife|six|seven|eight|nine|niner|\\d"
+
+        // 1. Before "line N" when preceded by non-whitespace, non-comma content.
+        //    "bravo two one line two" → "bravo two one, line two"
+        if let re = try? NSRegularExpression(
+            pattern: #"(?i)(?<=[^\s,])(\s+)(line\s+(?:"# + lineWords + #")\b)"#) {
+            s = re.stringByReplacingMatches(
+                in: s, range: NSRange(s.startIndex..., in: s),
+                withTemplate: ", $2")
+        }
+
+        // 2. After "line N" label, before its content (no comma already there).
+        //    "line one bravo" → "line one, bravo"
+        if let re = try? NSRegularExpression(
+            pattern: #"(?i)\b(line\s+(?:"# + lineWords + #"))\s+(?!,)"#) {
+            s = re.stringByReplacingMatches(
+                in: s, range: NSRange(s.startIndex..., in: s),
+                withTemplate: "$1, ")
+        }
+
+        // 3. Before major section keywords when something precedes them.
+        //    "…roger situation update…" → "…roger, situation update…"
+        let sectionKWs = [
+            "situation update", "sitrep",
+            "nine line", "9 line", "niner line",
+            "initial point",
+            "battle damage assessment", "bda",
+            "game plan", "gameplan",
+            "restrictions", "remarks",
+            "checking in", "check in",
+        ]
+        for kw in sectionKWs {
+            let escaped = NSRegularExpression.escapedPattern(for: kw)
+            if let re = try? NSRegularExpression(
+                pattern: "(?i)(?<=[^\\s,])(\\s+)(\(escaped))") {
+                s = re.stringByReplacingMatches(
+                    in: s, range: NSRange(s.startIndex..., in: s),
+                    withTemplate: ", $2")
+            }
+        }
+
+        // 4. Between a phonetic/number word and the next "line" keyword
+        //    to clean up cases the above rules didn't catch due to ordering.
+        //    "niner line one bravo, two one line two" — already handled above,
+        //    but double-pass is safe because we never insert double-commas.
+        //    Collapse any ",,"-style artefacts left by multiple passes.
+        if let re = try? NSRegularExpression(pattern: #",\s*,"#) {
+            s = re.stringByReplacingMatches(
+                in: s, range: NSRange(s.startIndex..., in: s),
+                withTemplate: ",")
+        }
+        // Collapse ", , " patterns too.
+        if let re = try? NSRegularExpression(pattern: #",(\s*,)+"#) {
+            s = re.stringByReplacingMatches(
+                in: s, range: NSRange(s.startIndex..., in: s),
+                withTemplate: ",")
+        }
+
+        return s
+    }
+
     /// Corrects common speech-to-text mis-recognitions for JTAC vocabulary.
     /// Runs before section detection so the parser always sees canonical forms.
     private func normalize(_ input: String) -> String {
-        var s = input
+        var s = insertCommas(input)   // structural comma pass first
 
         // Each entry: (pattern, replacement, isRegex)
         // Ordered carefully — multi-word patterns before their sub-words.
@@ -566,6 +662,46 @@ class JTACParser: ObservableObject {
             (#"(?i)\bniner\b"#,                          "niner",               true), // keep
             (#"(?i)\bfife\b"#,                           "five",                true),
             (#"(?i)\b(?<=\d )tree\b"#,                   "three",               true),
+
+            // ── Known callsign STT mishearings ────────────────────────────────
+            ("X-men",                                    "Axeman",              false),
+            ("x-men",                                    "Axeman",              false),
+            ("Xmen",                                     "Axeman",              false),
+            ("xmen",                                     "Axeman",              false),
+            ("asked man",                                "Axeman",              false),
+            ("Axman",                                    "Axeman",              false),
+            ("axman",                                    "Axeman",              false),
+            ("Haug",                                     "Hawg",                false),
+            ("haug",                                     "Hawg",                false),
+            ("Hogg",                                     "Hawg",                false),
+            ("hogg",                                     "Hawg",                false),
+            ("Sabre",                                    "Saber",               false),
+
+            // ── Aviation-specific word fixes ──────────────────────────────────
+            // "two by" fusions — STT merges into "Dubai", "do buy", "do by" etc.
+            (#"(?i)\bdubai\b"#,                          "2x ",                 true),
+            (#"(?i)\bdo\s+bu?y\b"#,                      "2x ",                 true),
+            (#"(?i)\bbuy\b"#,                            "by",                  true),
+
+            // Phonetic mis-hearings of number words
+            (#"(?i)\bwun\b"#,                            "one",                 true),
+            (#"(?i)\bto(?=\s+(?:one|two|three|four|five|fife|six|seven|eight|nine|niner|zero|\d))"#,
+                                                         "two",                 true),
+            // "to" between two number-words is always the digit "two"
+            // e.g. "one to one" → "one two one", "axeman to one" → "axeman two one"
+            (#"(?i)(?<=(?:one|two|three|four|five|fife|six|seven|eight|nine|niner|zero))\s+to\s+(?=one|two|three|four|five|fife|six|seven|eight|nine|niner|zero|\d)"#,
+                                                         " two ",               true),
+
+            // Canonical ordnance count: "two by GBU-12" → "2x GBU-12"
+            (#"(?i)\bone\s+by\s+"#,                      "1x ",                 true),
+            (#"(?i)\btwo\s+by\s+"#,                      "2x ",                 true),
+            (#"(?i)\bthree\s+by\s+"#,                    "3x ",                 true),
+            (#"(?i)\bfour\s+by\s+"#,                     "4x ",                 true),
+            (#"(?i)\bsix\s+by\s+"#,                      "6x ",                 true),
+            (#"(?i)\beight\s+by\s+"#,                    "8x ",                 true),
+            (#"(?i)\b(\d+)\s+by\s+"#,                    "$1x ",                true),
+            // mike-mike spacing variants
+            (#"(?i)\bmike\s+mike\b"#,                    "mike-mike",           true),
 
             // ── Acronym spacing ───────────────────────────────────────────────
             (#"(?i)\bj[- ]?tac\b"#,                      "JTAC",                true),
@@ -646,17 +782,11 @@ class JTACParser: ObservableObject {
 
         case .cas:
             if report.cas == nil { report.cas = CASData() }
-            extractCASType(from: fullSegment.lowercased())
-            // If "checking in" is the trigger, store the whole segment as check-in
-            if fullSegment.lowercased().contains("checking in") ||
-               fullSegment.lowercased().contains("check in") {
-                report.cas?.checkIn = join(report.cas?.checkIn, fullSegment)
-            } else if !trailing.isEmpty {
-                report.cas?.checkIn = join(report.cas?.checkIn, trailing)
-            }
+            extractCASFields(from: fullSegment)
 
         case .situationUpdate:
-            report.situationUpdate = join(report.situationUpdate, trailing)
+            if report.situationUpdate == nil { report.situationUpdate = SituationUpdate() }
+            extractSitrepFields(from: fullSegment)
 
         case .nineLine:
             if report.nineLine == nil { report.nineLine = NineLine() }
@@ -682,10 +812,11 @@ class JTACParser: ObservableObject {
     private func appendToCurrentSection(_ segment: String) {
         switch currentSection {
         case .cas:
-            report.cas?.checkIn = join(report.cas?.checkIn, segment)
+            if report.cas == nil { report.cas = CASData() }
+            extractCASFields(from: segment)
 
         case .situationUpdate:
-            report.situationUpdate = join(report.situationUpdate, segment)
+            extractSitrepFields(from: segment)
 
         case .nineLine:
             if report.nineLine == nil { report.nineLine = NineLine() }
@@ -708,9 +839,121 @@ class JTACParser: ObservableObject {
         }
     }
 
-    // MARK: - CAS Type Extraction
+    // MARK: - SITREP Field Extraction
 
-    private func extractCASType(from lower: String) {
+    /// Parses a free-text SITREP segment and populates SituationUpdate fields.
+    /// Each call fills in blanks left by earlier calls — safe to invoke repeatedly.
+    private func extractSitrepFields(from segment: String) {
+        if report.situationUpdate == nil { report.situationUpdate = SituationUpdate() }
+        let lower = segment.lowercased()
+
+        // ── THREATS ───────────────────────────────────────────────────────────
+        // Keywords: "threats", "threat", "MANPADS", "small arms", "heavy weapons"
+        if report.situationUpdate?.threats == nil {
+            let threatPatterns: [String] = [
+                #"(?i)\bthreats?\s*[:\-]?\s*(.+?)(?:\.|,\s*(?:targets?|enemy|friendl|arty|clearance|ordnance|remarks)|$)"#,
+                #"(?i)\b((?:small arms|heavy weapons?|machine gun|mortar|MANPADS|RPGS?|IED|VBIED|AAA|SAM|ZSU|anti[-\s]air|RPG)(?:[,\s]+(?:and|possible|with|plus))?\s*(?:small arms|heavy weapons?|machine gun|mortar|MANPADS|RPGS?|IED|VBIED|AAA|SAM|ZSU|anti[-\s]air|RPG)*)"#,
+            ]
+            for pat in threatPatterns {
+                if let val = extractCapture(pat, in: segment, group: 1),
+                   !val.trimmingCharacters(in: .whitespaces).isEmpty {
+                    report.situationUpdate?.threats = val.trimmingCharacters(in: .whitespacesAndNewlines)
+                    break
+                }
+            }
+        }
+
+        // ── TARGETS / ENEMY ───────────────────────────────────────────────────
+        if report.situationUpdate?.targets == nil {
+            let tgtPatterns: [String] = [
+                #"(?i)\b(?:targets?|enemy)\s*[:\-\/]?\s*(.+?)(?:\.|,\s*(?:threats?|friendl|arty|clearance|ordnance|remarks)|$)"#,
+                #"(?i)\b(\d+\s+(?:BMP|BTR|T-?\d+|truck|pickup|technical|armed vehicle|dismount|personnel|infantry|PKM|KIA|WIA)s?[^,\.]*?)(?:[,\.]|$)"#,
+            ]
+            for pat in tgtPatterns {
+                if let val = extractCapture(pat, in: segment, group: 1),
+                   !val.trimmingCharacters(in: .whitespaces).isEmpty {
+                    report.situationUpdate?.targets = join(report.situationUpdate?.targets,
+                                                          val.trimmingCharacters(in: .whitespacesAndNewlines))
+                    break
+                }
+            }
+        }
+
+        // ── FRIENDLIES ────────────────────────────────────────────────────────
+        // e.g. "1 Platoon South 400m, 1 Platoon East 1800m"
+        if lower.contains("friendl") {
+            if let val = extractCapture(
+                #"(?i)\bfriendl(?:y|ies)?\s*[:\-]?\s*(.+?)(?:\.|,\s*(?:threats?|targets?|enemy|arty|clearance|ordnance|remarks)|$)"#,
+                in: segment, group: 1),
+               !val.trimmingCharacters(in: .whitespaces).isEmpty {
+                report.situationUpdate?.friendlies = join(report.situationUpdate?.friendlies,
+                                                         val.trimmingCharacters(in: .whitespacesAndNewlines))
+            }
+        }
+
+        // ── ARTY ──────────────────────────────────────────────────────────────
+        // e.g. "1 COLD South 13km", "arty cold", "arty hot", "no arty"
+        if lower.contains("arty") || lower.contains("artillery") || lower.contains(" cold") || lower.contains(" hot ") {
+            if let val = extractCapture(
+                #"(?i)\b(?:arty|artillery)\s*[:\-]?\s*(.+?)(?:\.|,\s*(?:threats?|targets?|enemy|friendl|clearance|ordnance|remarks)|$)"#,
+                in: segment, group: 1) {
+                report.situationUpdate?.arty = val.trimmingCharacters(in: .whitespacesAndNewlines)
+            } else if lower.contains(" cold") || lower.contains(" hot") {
+                // Bare "1 COLD South 13km" with no "arty" keyword
+                if let val = extractCapture(
+                    #"(?i)(\d+\s+(?:cold|hot)[^,\.]*?)(?:[,\.]|$)"#,
+                    in: segment, group: 1) {
+                    report.situationUpdate?.arty = val.trimmingCharacters(in: .whitespacesAndNewlines)
+                }
+            }
+        }
+
+        // ── CLEARANCE ─────────────────────────────────────────────────────────
+        // e.g. "clearance ODIN11", "clearance authority Widow 11"
+        if report.situationUpdate?.clearance == nil,
+           lower.contains("clearance") || lower.contains("clear by") || lower.contains("cleared by") {
+            if let val = extractCapture(
+                #"(?i)\bclearance(?:\s+authority)?\s*[:\-]?\s*(\S+(?:\s+\w{1,4})?)"#,
+                in: segment, group: 1) {
+                report.situationUpdate?.clearance = val.trimmingCharacters(in: .whitespacesAndNewlines)
+            }
+        }
+
+        // ── ORDNANCE (SITREP context) ─────────────────────────────────────────
+        // Only capture when explicitly labelled — avoid pulling in CAS ordnance
+        if report.situationUpdate?.ordnance == nil,
+           lower.contains("ordnance:") || lower.contains("ord:") {
+            if let val = extractCapture(
+                #"(?i)\b(?:ordnance|ord)\s*[:\-]?\s*(.+?)(?:\.|,\s*(?:threats?|targets?|enemy|friendl|arty|clearance|remarks)|$)"#,
+                in: segment, group: 1),
+               !val.trimmingCharacters(in: .whitespaces).isEmpty,
+               val.trimmingCharacters(in: .whitespaces) != "//" {
+                report.situationUpdate?.ordnance = val.trimmingCharacters(in: .whitespacesAndNewlines)
+            }
+        }
+
+        // ── REMARKS / RESTRICTIONS ────────────────────────────────────────────
+        if lower.contains("remarks") || lower.contains("restrictions") {
+            if let val = extractCapture(
+                #"(?i)\b(?:remarks?|restrictions?)\s*[:\/\-]?\s*(.+?)(?:\.|$)"#,
+                in: segment, group: 1),
+               !val.trimmingCharacters(in: .whitespaces).isEmpty,
+               val.trimmingCharacters(in: .whitespaces) != "//" {
+                report.situationUpdate?.remarks = join(report.situationUpdate?.remarks,
+                                                      val.trimmingCharacters(in: .whitespacesAndNewlines))
+            }
+        }
+    }
+
+    // MARK: - CAS Field Extraction
+
+    /// Parses a free-text CAS check-in segment and populates CASData fields.
+    /// Designed to work on partial/informal phrasing — later calls for the same
+    /// session will fill in any blanks left by earlier ones.
+    private func extractCASFields(from segment: String) {
+        let lower = segment.lowercased()
+
+        // ── Control type ──────────────────────────────────────────────────────
         if lower.contains("type one") || lower.contains("type 1") {
             report.cas?.type    = "Type 1"
             report.cas?.control = "Type 1 Control"
@@ -721,6 +964,277 @@ class JTACParser: ObservableObject {
             report.cas?.type    = "Type 3"
             report.cas?.control = "Type 3 Control"
         }
+
+        // ── Callsign ──────────────────────────────────────────────────────────
+        // Handles both digit form ("Viper 1-1") and word-number form
+        // ("Hawg one-one", "Axeman two-one").
+        // Also handles "<destination> this is <callsign>" structure where the
+        // aircraft identifies itself after "this is".
+        if report.cas?.callsign == nil {
+            let numWord = "(?:one|two|three|four|five|six|seven|eight|nine|niner|zero)"
+            let numPart = "(?:\\d[\\d-]*|\(numWord)(?:[- ]\(numWord))*)"
+            // First priority: "this is <callsign>" — the transmitting aircraft
+            let thisIsPattern = "(?i)\\bthis\\s+is\\s+([A-Za-z]+(?:[- ][A-Za-z]+)?)\\s+(\(numPart))\\b"
+            if let regex = try? NSRegularExpression(pattern: thisIsPattern),
+               let match = regex.firstMatch(in: segment,
+                                            range: NSRange(segment.startIndex..., in: segment)) {
+                let word = (segment as NSString).substring(with: match.range(at: 1))
+                let num  = (segment as NSString).substring(with: match.range(at: 2))
+                report.cas?.callsign = "\(word) \(num)"
+            }
+
+            // Second priority: first callsign-shaped token in the segment.
+            // The name part must NOT be a number word, a common English word,
+            // or a JTAC term — callsigns are always proper names.
+            if report.cas?.callsign == nil {
+                let csPattern = "(?i)\\b([A-Za-z]+(?:[- ][A-Za-z]+)?)\\s+(\(numPart))\\b"
+                if let regex = try? NSRegularExpression(pattern: csPattern) {
+                    let ns = segment as NSString
+                    let matches = regex.matches(in: segment,
+                                               range: NSRange(segment.startIndex..., in: segment))
+                    // Words that must NOT be the name-part of a callsign
+                    let blockedWords: Set<String> = [
+                        // JTAC terms
+                        "type","gbu","mk","line","laser","vdl","abort","code",
+                        "fuel","playtime","this","checking","check","mission",
+                        "aircraft","ordnance","altitude","heading","distance",
+                        "elevation","remarks","restrictions","game","bda","cas",
+                        "mgrs","grid","egress","ingress","attack","initial",
+                        // Number words — a callsign name is never a bare number word
+                        "one","two","three","four","five","fife","six","seven",
+                        "eight","nine","niner","zero","ten","eleven","twelve",
+                        "thirteen","fourteen","fifteen","sixteen","seventeen",
+                        "eighteen","nineteen","twenty","thirty","forty","fifty",
+                        // Common radio procedure words
+                        "standby","roger","wilco","copy","over","out","break",
+                        "affirm","negative","authentic","authenticate",
+                    ]
+                    for match in matches {
+                        let word = ns.substring(with: match.range(at: 1))
+                        let wordLower = word.lowercased()
+                        // Reject if word itself is blocked or starts with a blocked prefix
+                        let blocked = blockedWords.contains(wordLower) ||
+                            blockedWords.contains(where: {
+                                $0.count > 3 && wordLower.hasPrefix($0)
+                            })
+                        if !blocked {
+                            let num = ns.substring(with: match.range(at: 2))
+                            report.cas?.callsign = "\(word) \(num)"
+                            break
+                        }
+                    }
+                }
+            }
+        }
+
+        // ── Aircraft type ─────────────────────────────────────────────────────
+        if report.cas?.aircraftType == nil {
+            // Regex patterns matched directly against the segment.
+            let acRegexes: [String] = [
+                #"(?i)\ba-?10[a-z]?\b"#,
+                #"(?i)\bf-?16[a-z]?\b"#,
+                #"(?i)\bf/?a-?18[a-z]?\b"#,
+                #"(?i)\bf-?15[a-z]?\b"#,
+                #"(?i)\bb-?52\b"#,
+                #"(?i)\bb-?1[b]?\b"#,
+                #"(?i)\bac-?130\b"#,
+                #"(?i)\bah-?64[a-z]?\b"#,
+                #"(?i)\bmq-?9\b"#,
+            ]
+            for pat in acRegexes {
+                if let v = extractMatch(pat, in: segment), !v.isEmpty {
+                    report.cas?.aircraftType = v.uppercased()
+                    break
+                }
+            }
+            // Nickname → designation aliases (only if regex pass found nothing).
+            if report.cas?.aircraftType == nil {
+                let aliases: [(String, String)] = [
+                    (#"(?i)\b(?:warthog|hawg)\b"#, "A-10"),
+                    (#"(?i)\bviper\b"#,             "F-16"),
+                    (#"(?i)\bhornet\b"#,            "F/A-18"),
+                    (#"(?i)\breaper\b"#,            "MQ-9"),
+                    (#"(?i)\bapache\b"#,            "AH-64"),
+                    (#"(?i)\b(?:spooky|ghostrider)\b"#, "AC-130"),
+                ]
+                for (pat, designation) in aliases {
+                    if extractMatch(pat, in: segment) != nil {
+                        report.cas?.aircraftType = designation
+                        break
+                    }
+                }
+            }
+        }
+
+        // ── Ordnance ──────────────────────────────────────────────────────────
+        // Accumulate — multiple weapons can be called out across segments.
+        var ordnanceParts: [String] = []
+        let ordPatterns: [String] = [
+            #"(?i)\bGBU[-\s]?\d+\b"#,
+            #"(?i)\bJDAM\b"#,
+            #"(?i)\bPaveway\b"#,
+            #"(?i)\bHellfire\b"#,
+            #"(?i)\bBrimstone\b"#,
+            #"(?i)\bMaverick\b"#,
+            #"(?i)\bAPKWS\b"#,
+            #"(?i)\bMk[-\s]?\d+\b"#,
+            #"(?i)\b(?:twenty|thirty|\d+)\s+mike[-\s]mike\b"#,
+            #"(?i)\b\d+x\s*\w+"#,                         // "4x GBU-12" style
+            #"(?i)\b(?:two|four|six|eight|\d+)\s+(?:GBU|Mk|JDAM|Hellfire)\b"#,
+        ]
+        for pat in ordPatterns {
+            if let val = extractMatch(pat, in: segment), !val.isEmpty {
+                ordnanceParts.append(val)
+            }
+        }
+        if !ordnanceParts.isEmpty {
+            let combined = ordnanceParts.joined(separator: ", ")
+            report.cas?.ordnance = join(report.cas?.ordnance, combined)
+        }
+
+        // ── Playtime ──────────────────────────────────────────────────────────
+        if report.cas?.playtime == nil {
+            // e.g. "playtime 45 minutes", "playtime four five", "45 minutes playtime"
+            let ptPatterns = [
+                // "playtime 45 minutes" / "playtime four five minutes"
+                #"(?i)\bplaytime\s+([\w\s]+?(?:minutes?|mins?|hours?))(?=[,. ]|$)"#,
+                // "45 minutes" / "45 mins on station"
+                #"(?i)\b(\d+)\s*(?:minutes?|mins?)\s*(?:playtime|on station|loiter)?"#,
+                // "playtime fifteen" — single token, stop at comma/period/space-then-non-digit-word
+                #"(?i)\bplaytime\s+(\w+)(?=[,. ]|$)"#,
+            ]
+            for pat in ptPatterns {
+                if let val = extractCapture(pat, in: segment, group: 1) {
+                    report.cas?.playtime = val.trimmingCharacters(in: .whitespaces)
+                    break
+                }
+            }
+        }
+
+        // ── Laser code ────────────────────────────────────────────────────────
+        if report.cas?.laserCode == nil {
+            // 4-digit code, optionally preceded by "laser" or "code"
+            let lcPatterns = [
+                #"(?i)\blaser\s+code\s+(\d{4})\b"#,
+                #"(?i)\blaser\s+(\d{4})\b"#,
+                #"(?i)\bcode\s+(\d{4})\b"#,
+                #"(?i)\b(1[0-9]{3}|[2-9]\d{3})\b"#,     // bare 4-digit number
+            ]
+            for pat in lcPatterns {
+                if let val = extractCapture(pat, in: segment, group: 1) {
+                    report.cas?.laserCode = val
+                    break
+                }
+            }
+        }
+
+        // ── VDL code ──────────────────────────────────────────────────────────
+        if report.cas?.vdlCode == nil {
+            let vdlPatterns = [
+                #"(?i)\bVDL\s+(?:code\s+)?(\w+)\b"#,
+                #"(?i)\bdata\s*link\s+(?:code\s+)?(\w+)\b"#,
+                #"(?i)\blink\s+(\d+)\b"#,
+            ]
+            for pat in vdlPatterns {
+                if let val = extractCapture(pat, in: segment, group: 1) {
+                    report.cas?.vdlCode = val
+                    break
+                }
+            }
+        }
+
+        // ── Abort code ────────────────────────────────────────────────────────
+        if report.cas?.abortCode == nil {
+            let abPatterns = [
+                #"(?i)\babort\s+(?:code\s+|word\s+)?(\w+(?:\s+\w+)?)\b"#,
+                #"(?i)\babort\s+(?:code\s+is\s+)?(\w+)\b"#,
+            ]
+            for pat in abPatterns {
+                if let val = extractCapture(pat, in: segment, group: 1) {
+                    // Exclude bare "abort" calls which have no real code word following
+                    if !["abort","criteria","code"].contains(val.lowercased()) {
+                        report.cas?.abortCode = val
+                        break
+                    }
+                }
+            }
+        }
+
+        // ── Position and Altitude ─────────────────────────────────────────────
+        if report.cas?.posAndAlt == nil {
+            let altPatterns = [
+                #"(?i)\b(\d{1,2}[,.]?\d{3}\s*(?:feet|ft|msl|agl))\b"#,
+                #"(?i)\bat\s+(\d+\s*(?:feet|ft|thousand))\b"#,
+                #"(?i)\b(flight\s+level\s+\d+)\b"#,
+                #"(?i)\b(angels\s+\w+)\b"#,
+            ]
+            for pat in altPatterns {
+                if let val = extractCapture(pat, in: segment, group: 1) {
+                    report.cas?.posAndAlt = join(report.cas?.posAndAlt, val)
+                    break
+                }
+            }
+        }
+
+        // ── CAPES (capabilities) ──────────────────────────────────────────────
+        var capeParts: [String] = []
+        let capeTokens: [(String, String)] = [
+            (#"(?i)\bFLIR\b"#, "FLIR"), (#"(?i)\bTGP\b"#, "TGP"),
+            (#"(?i)\bsniper\b"#, "Sniper"), (#"(?i)\blitening\b"#, "Litening"),
+            (#"(?i)\bNVG\b"#, "NVG"), (#"(?i)\bNVDS\b"#, "NVDS"),
+            (#"(?i)\blaser\b"#, "Laser"), (#"(?i)\bwing\s*born[e]?\b"#, "Wingborne"),
+            (#"(?i)\bHMD\b"#, "HMD"), (#"(?i)\bSDL\b"#, "SDL"),
+            (#"(?i)\bRWR\b"#, "RWR"),
+        ]
+        for (pat, label) in capeTokens {
+            if let _ = extractMatch(pat, in: segment) { capeParts.append(label) }
+        }
+        if !capeParts.isEmpty {
+            let combined = capeParts.joined(separator: ", ")
+            report.cas?.capes = join(report.cas?.capes, combined)
+        }
+        // Also capture a free-text "capes:" callout
+        if let val = extractCapture(#"(?i)\bcapes?\s*[:\-]?\s*(.+?)(?:\.|,|$)"#,
+                                     in: segment, group: 1) {
+            report.cas?.capes = join(report.cas?.capes, val)
+        }
+
+        // ── Mission number ────────────────────────────────────────────────────
+        if report.cas?.mission == nil {
+            let missPatterns = [
+                #"(?i)\bmission\s+(?:number\s+)?(\w+)\b"#,
+                #"(?i)\bmission\s+id\s+(\w+)\b"#,
+            ]
+            for pat in missPatterns {
+                if let val = extractCapture(pat, in: segment, group: 1) {
+                    report.cas?.mission = val
+                    break
+                }
+            }
+        }
+    }
+
+    // ── Regex helpers ─────────────────────────────────────────────────────────
+
+    /// Returns the full matched string for `pattern` in `text`, or nil.
+    private func extractMatch(_ pattern: String, in text: String) -> String? {
+        guard let regex = try? NSRegularExpression(pattern: pattern),
+              let match = regex.firstMatch(in: text,
+                                           range: NSRange(text.startIndex..., in: text))
+        else { return nil }
+        return (text as NSString).substring(with: match.range)
+    }
+
+    /// Returns capture group `group` for `pattern` in `text`, or nil.
+    private func extractCapture(_ pattern: String, in text: String, group: Int) -> String? {
+        guard let regex = try? NSRegularExpression(pattern: pattern),
+              let match = regex.firstMatch(in: text,
+                                           range: NSRange(text.startIndex..., in: text)),
+              match.numberOfRanges > group
+        else { return nil }
+        let r = match.range(at: group)
+        guard r.location != NSNotFound else { return nil }
+        return (text as NSString).substring(with: r)
     }
 
     // MARK: - Nine-Line Parsing
