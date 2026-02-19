@@ -43,7 +43,7 @@ actor CustomLanguageModelBuilder {
     private init() {}
 
     // ── Version — bump to invalidate all cached models ────────────────────
-    static let modelVersion = "2.0.0"
+    static let modelVersion = "2.2.0"
 
     // ── Cache directory ───────────────────────────────────────────────────
     private static let cacheDir: URL = {
@@ -227,6 +227,7 @@ actor CustomLanguageModelBuilder {
             "Bone",   "Spooky", "Ghostrider",
             "Slayer", "Striker",
             "flight lead", "dash two", "dash three", "dash four",
+            "callsign", "read callsign", "say callsign",
         ], weight: W.high, to: lm)
 
         // ── Aircraft platforms (weight 5.0) ───────────────────────────────
@@ -328,6 +329,21 @@ actor CustomLanguageModelBuilder {
             "thirty mike mike",
             "twenty mike mike",
         ], weight: W.low, to: lm)
+
+        // Briefing-point / battle-position identifiers (weight 7.5)
+        add([
+            "BP EEL 2K",
+            "call ready",
+            "when ready",
+            "say when ready",
+            "checking in when ready",
+            "check in when ready",
+            "situation update",
+            "situation update code alpha",
+            "situation update code bravo",
+            "situation update code charlie",
+            "bomb", "bombs away", "bomb release",
+        ], weight: W.high, to: lm)
     }
 
     // MARK: – Nine-line layer

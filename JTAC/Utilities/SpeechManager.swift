@@ -65,10 +65,10 @@ final class SpeechManager: NSObject, ObservableObject {
     /// Silence debounce work item.
     private var silenceWorkItem: DispatchWorkItem?
 
-    /// Text confirmed from previous task cycles in this transmission.
-    /// Prepended to every new partial result so a forced task restart never
-    /// erases words the user already spoke.
-    private var committedText = ""
+    /// Text accumulated from previous task cycles within the current transmission.
+    /// Always kept in sync with transcribedText so nothing is ever invisible.
+    /// Only cleared by the silence timer or stopRecording — never by a task reset.
+    private var displayPrefix = ""
 
     /// Dynamic silence threshold — extends for long 9-line readouts.
     private var silenceThreshold: TimeInterval {
@@ -82,6 +82,7 @@ final class SpeechManager: NSObject, ObservableObject {
         super.init()
         checkSpeechPermission()
         buildAllModels()
+        observeAudioSessionInterruptions()
     }
 
     // MARK: - Permissions
@@ -96,6 +97,85 @@ final class SpeechManager: NSObject, ObservableObject {
                 self.speechPermissionStatus = status
                 completion(status == .authorized)
             }
+        }
+    }
+
+    // MARK: - Audio Session Interruption Handling
+
+    private func observeAudioSessionInterruptions() {
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleAudioInterruption(_:)),
+            name: AVAudioSession.interruptionNotification,
+            object: AVAudioSession.sharedInstance()
+        )
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleMediaServicesReset),
+            name: AVAudioSession.mediaServicesWereResetNotification,
+            object: nil
+        )
+    }
+
+    /// Called when a phone call, alarm, Siri, or other app interrupts the session.
+    @objc private func handleAudioInterruption(_ notification: Notification) {
+        guard let info = notification.userInfo,
+              let typeValue = info[AVAudioSessionInterruptionTypeKey] as? UInt,
+              let type = AVAudioSession.InterruptionType(rawValue: typeValue) else { return }
+
+        switch type {
+        case .began:
+            // Interruption started — tear down cleanly without firing onSegmentCompleted
+            // (the operator is no longer transmitting).  Stay in "recording" intent
+            // state so we can resume automatically.
+            print("[SpeechManager] Audio interruption began")
+            silenceWorkItem?.cancel()
+            silenceWorkItem = nil
+            recognitionRequest?.endAudio()
+            recognitionTask?.cancel()
+            recognitionRequest = nil
+            recognitionTask = nil
+            audioEngine?.stop()
+            // Do NOT removeTap — we will reuse the engine on resume.
+
+        case .ended:
+            print("[SpeechManager] Audio interruption ended")
+            guard isRecording else { return }
+            // Wait one beat for the session to fully recover, then restart.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+                guard let self, self.isRecording else { return }
+                do {
+                    let session = AVAudioSession.sharedInstance()
+                    try session.setActive(true, options: .notifyOthersOnDeactivation)
+                    // Reinstall the tap and restart the engine since it was stopped.
+                    self.audioEngine?.inputNode.removeTap(onBus: 0)
+                    let fmt = self.audioEngine?.inputNode.outputFormat(forBus: 0)
+                    if let fmt, fmt.sampleRate > 0 {
+                        self.audioEngine?.inputNode.installTap(
+                            onBus: 0, bufferSize: 1024, format: fmt) { [weak self] buf, _ in
+                            self?.recognitionRequest?.append(buf)
+                        }
+                    }
+                    try self.audioEngine?.start()
+                    self.restartTaskInPlace()
+                } catch {
+                    self.errorMessage = "Could not resume after interruption: \(error.localizedDescription)"
+                }
+            }
+
+        @unknown default:
+            break
+        }
+    }
+
+    /// Called when iOS resets media services (rare but catastrophic without handling).
+    @objc private func handleMediaServicesReset() {
+        print("[SpeechManager] Media services reset")
+        guard isRecording else { return }
+        // Full teardown and restart.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
+            self?.stopRecording()
+            self?.errorMessage = "Audio system was reset. Please tap record to resume."
         }
     }
 
@@ -119,17 +199,41 @@ final class SpeechManager: NSObject, ObservableObject {
         cycleRecognitionTask()
     }
 
-    /// Ends the current recognition task and starts a fresh one.
-    /// Called from: silence cutoff (transcribedText already flushed),
-    ///              phase change (save in-progress text as committed prefix).
-    private func cycleRecognitionTask() {
-        // On a phase change, transcribedText still holds the in-progress words.
-        // Save them as the committed prefix so the new task doesn't lose them.
-        // (Silence cutoff already cleared both before calling here.)
-        let partial = transcribedText.trimmingCharacters(in: .whitespaces)
-        if !partial.isEmpty && committedText.isEmpty {
-            committedText = partial
+    /// Restarts the recognition task without ending the current transmission.
+    /// displayPrefix absorbs whatever is on screen so it stays visible.
+    /// The silence timer is the ONLY thing that ends a transmission.
+    private func restartTaskInPlace() {
+        // Snapshot current display text into the prefix so the operator
+        // never sees anything disappear between task cycles.
+        let current = transcribedText.trimmingCharacters(in: .whitespaces)
+        if !current.isEmpty {
+            displayPrefix = current
         }
+
+        recognitionTask?.cancel()
+        recognitionRequest?.endAudio()
+        recognitionTask = nil
+        recognitionRequest = nil
+        startNewRecognitionTask()
+    }
+
+    /// Called only by the silence cutoff and phase-change: ends the current
+    /// transmission, commits the text, then starts a fresh task.
+    private func cycleRecognitionTask() {
+        silenceWorkItem?.cancel()
+        silenceWorkItem = nil
+
+        // Silence cutoff already cleared transcribedText before calling here.
+        // On a phase-change call, commit whatever is still on screen.
+        let partial = transcribedText.trimmingCharacters(in: .whitespaces)
+        if !partial.isEmpty {
+            transcribedText = ""
+            criticalConfidenceAlert = false
+            onSegmentCompleted?(partial)
+        }
+
+        // Clear the prefix — new task = new transmission.
+        displayPrefix = ""
 
         recognitionTask?.cancel()
         recognitionRequest?.endAudio()
@@ -149,7 +253,7 @@ final class SpeechManager: NSObject, ObservableObject {
 
         recognitionTask?.cancel()
         recognitionTask = nil
-        committedText = ""   // fresh transmission — discard any leftover
+        displayPrefix = ""   // fresh recording session
 
         let session = AVAudioSession.sharedInstance()
         try session.setCategory(.record, mode: .measurement, options: .duckOthers)
@@ -188,13 +292,10 @@ final class SpeechManager: NSObject, ObservableObject {
         silenceWorkItem?.cancel()
         silenceWorkItem = nil
 
-        // Combine committed text from any mid-task resets with the current partial.
-        let partial = [committedText, transcribedText]
-            .map { $0.trimmingCharacters(in: .whitespaces) }
-            .filter { !$0.isEmpty }
-            .joined(separator: " ")
-        committedText = ""
+        // Commit whatever is on screen, then tear everything down.
+        let partial = transcribedText.trimmingCharacters(in: .whitespaces)
         transcribedText = ""
+        displayPrefix = ""
         if !partial.isEmpty {
             onSegmentCompleted?(partial)
         }
@@ -254,59 +355,66 @@ final class SpeechManager: NSObject, ObservableObject {
                 guard self.taskGeneration == myGen else { return }
 
                 if let result {
-                    // Full correction pipeline
                     let corrected = self.corrector.correct(result)
 
-                    // Prepend any committed prefix from a prior task cycle.
-                    // committedText is cleared once embedded here so it is
-                    // never double-counted by the silence cutoff.
-                    let combined = [self.committedText, corrected.text]
-                        .map { $0.trimmingCharacters(in: .whitespaces) }
-                        .filter { !$0.isEmpty }
-                        .joined(separator: " ")
-
-                    // CRITICAL: never wipe what's already on screen.
-                    // iOS may emit an empty or shorter intermediate result
-                    // while it reconsiders — ignore those to prevent
-                    // the "text disappeared" glitch.
-                    if !combined.isEmpty {
-                        self.transcribedText = combined
-                        self.committedText = ""   // now embedded in transcribedText
-                    }
-
-                    // Surface confidence alerts
-                    if !corrected.lowConfidenceFlags.isEmpty {
-                        self.onLowConfidenceDetected?(corrected.lowConfidenceFlags)
-                    }
-                    if corrected.hasCriticalLowConfidence {
-                        self.criticalConfidenceAlert = true
-                    }
-
                     if result.isFinal {
-                        // iOS finished this task (time limit, noise, or normal end).
-                        // The user may still be speaking — cycle immediately so
-                        // continued words are captured rather than lost.
-                        // Save current display text as the committed prefix for
-                        // the replacement task; the silence timer handles the
-                        // actual segment cutoff as normal.
-                        let snapshot = self.transcribedText
-                        if !snapshot.isEmpty {
-                            self.committedText = snapshot
+                        // ── Involuntary task end (iOS time/noise limit) ────────
+                        // The operator is likely still speaking. Do NOT commit —
+                        // absorb current display text into displayPrefix so it
+                        // stays visible, then restart the task transparently.
+                        // The silence timer is the only thing that commits.
+                        //
+                        // Use whichever text is longer — iOS sometimes shortens
+                        // on its final pass.
+                        let best = corrected.text.count >= self.transcribedText.count
+                            ? corrected.text : self.transcribedText
+                        let trimmed = best.trimmingCharacters(in: .whitespaces)
+                        if !trimmed.isEmpty {
+                            self.displayPrefix = trimmed
+                            // Keep transcribedText showing the full text so
+                            // nothing ever disappears from the operator's view.
+                            self.transcribedText = trimmed
                         }
-                        self.startNewRecognitionTask()
+
+                        if !corrected.lowConfidenceFlags.isEmpty {
+                            self.onLowConfidenceDetected?(corrected.lowConfidenceFlags)
+                        }
+                        if corrected.hasCriticalLowConfidence {
+                            self.criticalConfidenceAlert = true
+                        }
+
+                        if self.isRecording {
+                            self.restartTaskInPlace()
+                        }
+
                     } else {
+                        // ── Normal partial result ──────────────────────────────
+                        // Prepend the accumulated prefix from previous task cycles
+                        // so the display always shows the full transmission so far.
+                        let newText = corrected.text.trimmingCharacters(in: .whitespaces)
+                        if newText.isEmpty {
+                            // Empty partial — iOS is reconsidering. Keep showing
+                            // whatever we have; do not blank the screen.
+                        } else if self.displayPrefix.isEmpty {
+                            self.transcribedText = newText
+                        } else {
+                            self.transcribedText = self.displayPrefix + " " + newText
+                        }
+
+                        if !corrected.lowConfidenceFlags.isEmpty {
+                            self.onLowConfidenceDetected?(corrected.lowConfidenceFlags)
+                        }
+                        if corrected.hasCriticalLowConfidence {
+                            self.criticalConfidenceAlert = true
+                        }
                         self.rescheduleSilenceCutoff()
                     }
 
-                } else if error != nil, self.isRecording {
-                    // Task died with an error (audio interruption, session reset).
-                    // transcribedText already contains committedText embedded,
-                    // so save the whole display text as the new committed prefix.
-                    let snapshot = self.transcribedText.trimmingCharacters(in: .whitespaces)
-                    if !snapshot.isEmpty {
-                        self.committedText = snapshot
-                    }
-                    self.startNewRecognitionTask()
+                } else if self.isRecording {
+                    // ── Task died (error OR iOS nil/nil cancellation) ──────────
+                    // Do NOT commit — restart in place. The silence timer will
+                    // commit when the operator actually stops speaking.
+                    self.restartTaskInPlace()
                 }
             }
         }
@@ -320,20 +428,15 @@ final class SpeechManager: NSObject, ObservableObject {
 
         let item = DispatchWorkItem { [weak self] in
             guard let self, self.isRecording else { return }
-            // committedText is embedded in transcribedText by the time silence
-            // fires (it was cleared on each result update).  Use transcribedText
-            // directly; drop any leftover committedText as a safety net.
             let text = self.transcribedText.trimmingCharacters(in: .whitespaces)
-            guard !text.isEmpty else {
-                // Nothing to send — just ensure accumulators are clean.
-                self.committedText = ""
-                return
-            }
+            guard !text.isEmpty else { return }
 
+            // End this transmission segment.
             self.transcribedText = ""
-            self.committedText = ""   // segment is done — reset accumulator
+            self.displayPrefix   = ""   // reset for the next transmission
             self.criticalConfidenceAlert = false
             self.onSegmentCompleted?(text)
+            // transcribedText is empty; cycleRecognitionTask won't double-commit.
             self.cycleRecognitionTask()
         }
 

@@ -114,6 +114,21 @@ final class SpeechCorrectionEngine {
         ("hogg",                "Hawg",         false),
         ("Sabre",               "Saber",        false),
 
+        // ── "callsign" mishearings ────────────────────────────────────────────
+        ("(?i)\\bgoal\\s+sign\\b",               "callsign",               true),
+        ("(?i)\\bcoal\\s+sign\\b",               "callsign",               true),
+        ("(?i)\\bcosine\\b",                     "callsign",               true),
+        ("(?i)\\bcall\\s+sign\\b",               "callsign",               true),
+
+        // ── Callsign phonetic mishearings ─────────────────────────────────
+        ("(?i)\\bpan\\s+are\\b",                 "panther",                true),
+
+        // ── Briefing-point / Battle-position identifiers ──────────────────
+        ("(?i)\\bBPEEL\\s*2K\\b",               "BP EEL 2K",              true),
+        ("(?i)\\bB\\s*PEEL\\s*2K\\b",           "BP EEL 2K",              true),
+        ("(?i)\\bb[ei]\\s+peel\\s*2k\\b",       "BP EEL 2K",              true),
+        ("(?i)\\bbravo\\s+papa\\s+eel\\s+2k\\b","BP EEL 2K",              true),
+
         // ── Quantity / "N by weapon" fusions ──────────────────────────────
         // "Dubai" is the top STT fusion of "two by" — highest priority.
         ("(?i)\\bDubai\\b",                        "2x",    true),
@@ -135,12 +150,12 @@ final class SpeechCorrectionEngine {
         ("(?i)\\bnine-line\\b",                    "nine line",  true),
 
         // ── CAS type variants ─────────────────────────────────────────────
-        ("(?i)\\btype\\s+(1|one)\\s+control\\b",   "type 1 control", true),
-        ("(?i)\\btype\\s+(2|two)\\s+control\\b",   "type 2 control", true),
-        ("(?i)\\btype\\s+(3|three)\\s+control\\b", "type 3 control", true),
-        ("(?i)\\btype\\s+(1|one)\\b",              "type 1", true),
-        ("(?i)\\btype\\s+(2|two)\\b",              "type 2", true),
-        ("(?i)\\btype\\s+(3|three)\\b",            "type 3", true),
+        ("(?i)\\btype\\s+(1|one|wun)\\s+control\\b",       "type 1 control", true),
+        ("(?i)\\btype\\s+(2|two|to)\\s+control\\b",        "type 2 control", true),
+        ("(?i)\\btype\\s+(3|three|tree)\\s+control\\b",    "type 3 control", true),
+        ("(?i)\\btype\\s+(1|one|wun)\\b",                  "type 1",         true),
+        ("(?i)\\btype\\s+(2|two|to)\\b",                   "type 2",         true),
+        ("(?i)\\btype\\s+(3|three|tree)\\b",               "type 3",         true),
 
         // ── Brevity code variants ─────────────────────────────────────────
         ("(?i)\\bcleared\\s+hot\\b",               "cleared hot",     true),
@@ -150,6 +165,9 @@ final class SpeechCorrectionEngine {
         ("(?i)\\boff\\s+dry\\b",                   "off dry",         true),
         ("(?i)\\bdanger\\s+close\\b",              "danger close",    true),
         ("(?i)\\babort\\s+abort\\s+abort\\b",      "abort abort abort", true),
+        // "a board" / "aboard" — common STT mishearing of "abort" in radio comms
+        ("(?i)\\ba\\s+board\\b",                   "abort",             true),
+        ("(?i)\\baboard\\b",                       "abort",             true),
 
         // ── BDA ───────────────────────────────────────────────────────────
         ("(?i)\\bb\\.?d\\.?a\\.?\\b",             "BDA",    true),
@@ -168,6 +186,31 @@ final class SpeechCorrectionEngine {
         ("(?i)\\bloud\\s+and\\s+clear\\b",        "loud and clear",true),
         ("(?i)\\bstand\\s+by\\b",                 "standby",       true),
         ("(?i)\\bwill\\s+co\\b",                  "wilco",         true),
+
+        // ── Procedural-phrase mishearings ─────────────────────────────────
+        // "call ready" variants
+        ("(?i)\\bcolor\\s+already\\b",              "call ready",             true),
+        ("(?i)\\bcolou?r\\s+ready\\b",              "call ready",             true),
+        // "checking in when ready" variants
+        ("(?i)\\bcheck\\s+on\\s+lady\\b",           "checking in when ready", true),
+        ("(?i)\\bcheck\\s+on\\s+when\\s+ready\\b",  "checking in when ready", true),
+        ("(?i)\\bcheck\\s+in\\s+when\\s+ready\\b",  "checking in when ready", true),
+
+        // "when ready" standalone
+        // "on the rent" is the top STT mishearing of "when ready" in radio context
+        ("(?i)\\bon\\s+the\\s+rent\\b",              "when ready",             true),
+        ("(?i)\\bwhen\\s+ready\\b",                 "when ready",             true),
+
+        // "situation update" mishearings ─────────────────────────────────
+        // iOS hears the letter "A" in auth codes as "8" (both sound like "ay"/"eigh")
+        // Cast the net wide: match any garbled form of "update" before "code 8"
+        ("(?i)\\bsituation\\s+upd\\w*\\s+code\\s+8\\b", "situation update code alpha", true),
+        ("(?i)\\bsituation\\s+update\\s+code\\s+8\\b",  "situation update code alpha", true),
+        // Catch a standalone garbled "situatn" / "situate" prefix too
+        ("(?i)\\bsituat\\w+\\s+upd\\w+\\b",             "situation update",           true),
+
+        // ── "bomb" ── STT conflates with "bump" in JTAC radio context ─────
+        ("(?i)\\bbump\\b",                          "bomb",                   true),
     ]
 
     private func applyMultiTokenRules(_ input: String) -> String {
