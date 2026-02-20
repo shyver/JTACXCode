@@ -63,14 +63,10 @@ class JTACParser: ObservableObject {
                     appendToCurrentSection(chunk.text)
                 }
             }
-
-            // After each discrete transmission: if the last chunk was keywordless
-            // AND had no inferable section, reset so the next transmission cannot
-            // accidentally continue into this one's section.
-            let lastChunk = chunks.last
-            if lastChunk?.section == nil && inferSection(for: lastChunk?.text ?? "") == nil {
-                currentSection = .unknown
-            }
+            // NOTE: currentSection is intentionally NOT reset to .unknown here.
+            // A 9-line brief arrives in multiple silence-timer segments; losing the
+            // section context between segments would orphan data.  The section
+            // context only changes when a new explicit keyword is detected.
         }
     }
 
@@ -317,6 +313,27 @@ class JTACParser: ObservableObject {
         let closing = ["authentication", "authenticate", "read back", "how copy",
                        "ready to copy"]
         for t in closing where lower.contains(t) { score += 2 }
+
+        // ── Positional 9-line format signals ─────────────────────────────────
+        // These appear in free-text briefs that have no "line N" labels but DO
+        // use the standard semicolon / comma positional layout.
+
+        // 3-digit heading (e.g. "090°", "270") — appears in almost every 9-line.
+        if lower.range(of: #"\b\d{2,3}\s*°"#, options: .regularExpression) != nil { score += 3 }
+
+        // Elevation marker — appears as line 4 in every positional 9-line.
+        if lower.range(of: #"\b\d+\s*(?:ft|feet|msl|agl)\b"#,
+                       options: [.regularExpression, .caseInsensitive]) != nil { score += 2 }
+
+        // MGRS/grid reference (2 letters + 4-digit easting + 4-digit northing).
+        if lower.range(of: #"\b[a-z]{2}\s+\d{3,5}\s+\d{3,5}\b"#,
+                       options: .regularExpression) != nil { score += 3 }
+
+        // Mark type keywords used in line 7.
+        if lower.contains("talk on") || lower.contains("sparkle") { score += 2 }
+
+        // Semicolons as field-group separators — hallmark of positional 9-line.
+        if lower.contains(";") { score += 1 }
 
         return score
     }
@@ -685,17 +702,74 @@ class JTACParser: ObservableObject {
         //    to clean up cases the above rules didn't catch due to ordering.
         //    "niner line one bravo, two one line two" — already handled above,
         //    but double-pass is safe because we never insert double-commas.
-        //    Collapse any ",,"-style artefacts left by multiple passes.
-        if let re = try? NSRegularExpression(pattern: #",\s*,"#) {
+
+        // 4.5 Fused distance+elevation — STT sometimes emits no separator at all.
+        //    e.g. "780127ft" (distance 780, elevation 127ft) must become "780; 127ft".
+        //    Strategy: lazy-match 3–5 leading digits (distance), then 2–4 trailing
+        //    digits that are immediately followed by an elevation unit (ft/feet/msl/agl).
+        //    The lazy first group ensures the minimum prefix is taken, leaving the
+        //    elevation digits for the second group.
+        //    "780127ft"   → "780; 127ft"
+        //    "9501270msl" → "950; 1270msl"
+        //    "127ft" standalone → no match (first group can't consume 3+ digits
+        //    AND leave 2+ digits for the second group)
+        if let re = try? NSRegularExpression(
+            pattern: #"\b(\d{3,5}?)(\d{2,4}(?:ft|feet|msl|agl))\b"#,
+            options: .caseInsensitive) {
             s = re.stringByReplacingMatches(
                 in: s, range: NSRange(s.startIndex..., in: s),
-                withTemplate: ",")
+                withTemplate: "$1; $2")
         }
-        // Collapse ", , " patterns too.
-        if let re = try? NSRegularExpression(pattern: #",(\s*,)+"#) {
+
+        // 5. Positional 9-line: group 1 → group 2 boundary.
+        //    A bare distance value (digits, optionally K-suffix) is the last field
+        //    of group 1.  When the NEXT token is an elevation (digits + ft/feet/msl/agl)
+        //    the separating comma should be a semicolon.
+        //    "090, 950, 127FT" → "090, 950; 127FT"
+        if let re = try? NSRegularExpression(
+            pattern: #"(\b\d+[Kk]?)\s*,\s*(?=\d+\s*(?:ft|feet|msl|agl)\b)"#,
+            options: .caseInsensitive) {
             s = re.stringByReplacingMatches(
                 in: s, range: NSRange(s.startIndex..., in: s),
-                withTemplate: ",")
+                withTemplate: "$1; ")
+        }
+
+        // 6. Positional 9-line: group 2 → group 3 boundary.
+        //    An MGRS-style grid reference (1–2 letters + two digit blocks) is
+        //    the last field of group 2.  Upgrade the following comma to semicolon.
+        //    "NC 1234 5678, Talk ON" → "NC 1234 5678; Talk ON"
+        if let re = try? NSRegularExpression(
+            pattern: #"([A-Za-z]{1,2}\s+\d{3,5}\s+\d{3,5})\s*,\s*"#) {
+            s = re.stringByReplacingMatches(
+                in: s, range: NSRange(s.startIndex..., in: s),
+                withTemplate: "$1; ")
+        }
+
+        // 7. Also handle the case where the operator says the 9-line without any
+        //    existing commas at all — the two boundaries above only fire when there
+        //    is already a comma.  Insert one from scratch when the patterns are
+        //    adjacent with only whitespace:
+        //    "950 127FT" → "950; 127FT"
+        if let re = try? NSRegularExpression(
+            pattern: #"(\b\d+[Kk]?)\s+(?=\d+\s*(?:ft|feet|msl|agl)\b)"#,
+            options: .caseInsensitive) {
+            s = re.stringByReplacingMatches(
+                in: s, range: NSRange(s.startIndex..., in: s),
+                withTemplate: "$1; ")
+        }
+        //    "NC 1234 5678 Talk ON" → "NC 1234 5678; Talk ON"
+        if let re = try? NSRegularExpression(
+            pattern: #"([A-Za-z]{1,2}\s+\d{3,5}\s+\d{3,5})\s+(?=[A-Za-z])"#) {
+            s = re.stringByReplacingMatches(
+                in: s, range: NSRange(s.startIndex..., in: s),
+                withTemplate: "$1; ")
+        }
+
+        // Collapse any ",," or ";;" artefacts left by multiple passes.
+        if let re = try? NSRegularExpression(pattern: #"[,;](\s*[,;])+"#) {
+            s = re.stringByReplacingMatches(
+                in: s, range: NSRange(s.startIndex..., in: s),
+                withTemplate: ";")
         }
 
         return s
@@ -1379,8 +1453,12 @@ class JTACParser: ObservableObject {
         let matches = JTACParser.lineRegex.matches(in: text, range: fullRange)
 
         if matches.isEmpty {
-            // No explicit line labels — try keyword heuristics
-            assignNineLineByKeyword(text)
+            // No explicit "line N" labels.
+            // Try positional parse (semicolon/comma-delimited) first,
+            // then fall back to keyword heuristics.
+            if !parsePositionalNineLine(text) {
+                assignNineLineByKeyword(text)
+            }
             return
         }
 
@@ -1440,18 +1518,157 @@ class JTACParser: ObservableObject {
     }
 
     private func assignNineLine(number: Int, text: String) {
+        // Non-destructive: never overwrite a field that was already populated.
+        // A 9-line brief can arrive in multiple silence-timer segments; each
+        // segment fills in the next empty slots without touching earlier ones.
+        guard !text.isEmpty else { return }
         switch number {
-        case 1: report.nineLine?.ip               = text
-        case 2: report.nineLine?.heading          = text
-        case 3: report.nineLine?.distance         = text
-        case 4: report.nineLine?.targetElevation  = text
-        case 5: report.nineLine?.targetDescription = text
-        case 6: report.nineLine?.targetMark       = text
-        case 7: report.nineLine?.friendlies       = text
-        case 8: report.nineLine?.egress           = text
-        case 9: report.nineLine?.remarksLine      = text
+        case 1: if report.nineLine?.ip               == nil { report.nineLine?.ip               = text }
+        case 2: if report.nineLine?.heading          == nil { report.nineLine?.heading          = text }
+        case 3: if report.nineLine?.distance         == nil { report.nineLine?.distance         = text }
+        case 4: if report.nineLine?.targetElevation  == nil { report.nineLine?.targetElevation  = text }
+        case 5: if report.nineLine?.targetDescription == nil { report.nineLine?.targetDescription = text }
+        case 6: if report.nineLine?.targetMark       == nil { report.nineLine?.targetMark       = text }
+        case 7: if report.nineLine?.friendlies       == nil { report.nineLine?.friendlies       = text }
+        case 8: if report.nineLine?.egress           == nil { report.nineLine?.egress           = text }
+        case 9: if report.nineLine?.remarksLine      == nil { report.nineLine?.remarksLine      = text }
         default: break
         }
+    }
+
+    /// Returns the line number (1–9) of the first nil field, or 10 if all filled.
+    private func firstEmptyNineLineNumber() -> Int {
+        guard let nl = report.nineLine else { return 1 }
+        if nl.ip               == nil { return 1 }
+        if nl.heading          == nil { return 2 }
+        if nl.distance         == nil { return 3 }
+        if nl.targetElevation  == nil { return 4 }
+        if nl.targetDescription == nil { return 5 }
+        if nl.targetMark       == nil { return 6 }
+        if nl.friendlies       == nil { return 7 }
+        if nl.egress           == nil { return 8 }
+        if nl.remarksLine      == nil { return 9 }
+        return 10
+    }
+
+    // MARK: - Positional 9-Line Parser
+
+    /// Parses a free-text 9-line brief that uses commas and/or semicolons as
+    /// positional delimiters, without any explicit "line N" labels.
+    ///
+    /// Standard positional layout:
+    ///   Group 1 (sep by ;): Line 1 (IP),   Line 2 (Heading), Line 3 (Distance)
+    ///   Group 2 (sep by ;): Line 4 (Elev), Line 5 (Target),  Line 6 (Location)
+    ///   Group 3 (sep by ;): Line 7 (Mark), Line 8 (Friendlies), Line 9 (Egress)
+    ///
+    /// Example input:
+    ///   "EEL, 090, 950; 127FT, 2x vehicles in the Open, NC 1234 5678;
+    ///    Talk ON, SE 400, Egress Right Pole back to BP EEL 2K"
+    ///
+    /// Returns true when at least 3 fields were successfully mapped.
+    @discardableResult
+    private func parsePositionalNineLine(_ text: String) -> Bool {
+        let lower = text.lowercased()
+
+        // ── Confidence gate ────────────────────────────────────────────────
+        // Must have structural delimiters.
+        let hasSemicolon = text.contains(";")
+        let commaCount   = text.filter { $0 == "," }.count
+        guard hasSemicolon || commaCount >= 2 else { return false }
+
+        // Must include at least one numeric JTAC field indicator —
+        // UNLESS we are already in a confirmed 9-line context (the previous
+        // segment established the section), in which case any comma/semicolon-
+        // delimited fragment is assumed to be the continuation of the brief.
+        let alreadyInNineLine = currentSection == .nineLine
+        let hasHeading   = lower.range(of: #"\b\d{2,3}\s*°"#,
+                                       options: .regularExpression) != nil
+        let hasElevation = lower.range(of: #"\b\d+\s*(?:ft|feet|msl|agl)\b"#,
+                                       options: [.regularExpression, .caseInsensitive]) != nil
+        let hasMGRS      = lower.range(of: #"\b[a-z]{2}\s+\d{3,5}\s+\d{3,5}\b"#,
+                                       options: .regularExpression) != nil
+        let hasEgress    = lower.contains("egress")
+        let hasTalkOn    = lower.contains("talk on") || lower.contains("sparkle")
+        guard alreadyInNineLine || hasHeading || hasElevation || hasMGRS || hasEgress || hasTalkOn else {
+            return false
+        }
+
+        // ── Clean input ────────────────────────────────────────────────────
+        // Strip degree symbols so "090°" becomes pure "090".
+        let clean = text
+            .replacingOccurrences(of: "°", with: "")
+
+        // ── Build field list ───────────────────────────────────────────────
+        var fields: [String]
+
+        if hasSemicolon {
+            // Semicolons separate groups of 3 lines.
+            // Split each group on commas, keeping remainder of group 3 intact
+            // so long egress/remarks text is not fragmented.
+            let groups = clean
+                .components(separatedBy: ";")
+                .map { $0.trimmingCharacters(in: .whitespaces) }
+                .filter { !$0.isEmpty }
+
+            var result: [String] = []
+            for (gi, group) in groups.enumerated() {
+                // Lines already collected; calculate how many remain.
+                let remaining  = max(0, 9 - result.count)
+                // Allow at most 3 fields per group (lines go as 1-3, 4-6, 7-9).
+                // Cap splits so the last field in the group absorbs any extra commas.
+                let maxSplits  = min(remaining - 1, 2)
+                let groupFields = splitFirstN(group, separator: ",", maxSplits: maxSplits)
+                result.append(contentsOf: groupFields)
+                if result.count >= 9 { break }
+            }
+            fields = result
+        } else {
+            // No semicolons — flat comma list; cap at 8 splits (9 total fields).
+            fields = splitFirstN(clean, separator: ",", maxSplits: 8)
+        }
+
+        // ── Trim and assign ────────────────────────────────────────────────
+        let trimPunct = CharacterSet(charactersIn: ".,;:-")
+        let trimmed = fields
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines)
+                      .trimmingCharacters(in: trimPunct) }
+            .filter { !$0.isEmpty }
+
+        guard trimmed.count >= 3 else { return false }
+
+        // Start from the first empty 9-line slot so that a brief delivered
+        // in multiple silence-timer segments fills in cleanly:
+        //   segment 1 fills lines 1-3, segment 2 picks up at line 4, etc.
+        let startLine = firstEmptyNineLineNumber()
+        guard startLine <= 9 else { return true }  // nothing left to fill
+
+        for (i, value) in trimmed.enumerated() where !value.isEmpty {
+            let lineNum = startLine + i
+            guard lineNum <= 9 else { break }
+            assignNineLine(number: lineNum, text: value)
+        }
+        return true
+    }
+
+    /// Splits `s` on `separator`, stopping after `maxSplits` splits.
+    /// Everything from the (maxSplits+1)th separator onward is returned as one
+    /// final element, so long free-text fields (egress, remarks) are not fragmented.
+    private func splitFirstN(_ s: String, separator: Character, maxSplits: Int) -> [String] {
+        var result: [String] = []
+        var remaining = s
+        var splits = 0
+        while splits < maxSplits, let idx = remaining.firstIndex(of: separator) {
+            let part = String(remaining[remaining.startIndex..<idx])
+                .trimmingCharacters(in: .whitespaces)
+            result.append(part)
+            remaining = String(remaining[remaining.index(after: idx)...])
+                .trimmingCharacters(in: .whitespaces)
+            splits += 1
+        }
+        if !remaining.isEmpty {
+            result.append(remaining.trimmingCharacters(in: .whitespaces))
+        }
+        return result.filter { !$0.isEmpty }
     }
 
     // MARK: - String Helpers

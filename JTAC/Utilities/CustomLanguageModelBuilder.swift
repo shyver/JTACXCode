@@ -43,7 +43,7 @@ actor CustomLanguageModelBuilder {
     private init() {}
 
     // ── Version — bump to invalidate all cached models ────────────────────
-    static let modelVersion = "2.2.0"
+    static let modelVersion = "2.4.0"
 
     // ── Cache directory ───────────────────────────────────────────────────
     private static let cacheDir: URL = {
@@ -180,6 +180,11 @@ actor CustomLanguageModelBuilder {
             "danger close",
             "hold fire",
             "cease fire",
+            // Known identifiers with high garble rate — elevated to critical
+            // so the recognizer learns them as atomic units.
+            "BP EEL 2K",
+            "BP EEL",
+            "Panther",
         ], weight: W.critical, to: lm)
 
         // ── Radio procedure (weight 7.5) ──────────────────────────────────
@@ -228,6 +233,7 @@ actor CustomLanguageModelBuilder {
             "Slayer", "Striker",
             "flight lead", "dash two", "dash three", "dash four",
             "callsign", "read callsign", "say callsign",
+            "Panther", "Panther one-one", "Panther two-one",
         ], weight: W.high, to: lm)
 
         // ── Aircraft platforms (weight 5.0) ───────────────────────────────
@@ -260,6 +266,7 @@ actor CustomLanguageModelBuilder {
 
         // ── Navigation / geometry (weight 2.0) ───────────────────────────
         add([
+            "target", "on target", "off target", "tally target",
             "MGRS", "grid", "ten digit grid", "eight digit grid",
             "altitude MSL", "altitude AGL",
             "angels", "flight level",

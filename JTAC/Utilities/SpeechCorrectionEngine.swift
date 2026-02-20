@@ -86,10 +86,26 @@ final class SpeechCorrectionEngine {
 
     private func applyFullPipeline(_ input: String) -> String {
         var s = input
+        s = preprocessInput(s)          // strip iOS auto-punctuation commas
         s = applyMultiTokenRules(s)     // longest-match multi-word rewrites first
+        s = applyNATOCollapse(s)        // collapse phonetic sequences → letters
         s = applyPhoneticNormalisation(s)
         s = applyStructuralCleanup(s)
         return s
+    }
+
+    // MARK: - Pre-processing
+
+    /// Removes commas that iOS punctuation-prediction inserts inside JTAC
+    /// Normalises whitespace only.  Commas are preserved because iOS
+    /// addsPunctuation inserts them at natural pause points — those pauses are
+    /// exactly the field boundaries in a 9-line brief ("EEL, 090°, 950").
+    /// Stripping them would destroy the only positional delimiters the parser
+    /// can use to split lines 1-3, 4-6, and 7-9.
+    private func preprocessInput(_ input: String) -> String {
+        var s = input
+        s = s.replacingOccurrences(of: "\\s{2,}", with: " ", options: .regularExpression)
+        return s.trimmingCharacters(in: .whitespaces)
     }
 
     // MARK: - Rule Sets
@@ -121,13 +137,28 @@ final class SpeechCorrectionEngine {
         ("(?i)\\bcall\\s+sign\\b",               "callsign",               true),
 
         // ── Callsign phonetic mishearings ─────────────────────────────────
-        ("(?i)\\bpan\\s+are\\b",                 "panther",                true),
+        ("(?i)\\bpan\\s+are\\b",                 "Panther",  true),
+        // STT mishearings of "panther" — none of these have JTAC meaning.
+        ("(?i)\\banswer\\b",                      "Panther",  true),
+        ("(?i)\\bpuncture\\b",                    "Panther",  true),
+        ("(?i)\\bpantera\\b",                     "Panther",  true),
+        ("(?i)\\bpanthere\\b",                    "Panther",  true),
 
         // ── Briefing-point / Battle-position identifiers ──────────────────
-        ("(?i)\\bBPEEL\\s*2K\\b",               "BP EEL 2K",              true),
-        ("(?i)\\bB\\s*PEEL\\s*2K\\b",           "BP EEL 2K",              true),
-        ("(?i)\\bb[ei]\\s+peel\\s*2k\\b",       "BP EEL 2K",              true),
-        ("(?i)\\bbravo\\s+papa\\s+eel\\s+2k\\b","BP EEL 2K",              true),
+        // Full NATO phonetic spelling — must run BEFORE generic NATO collapse.
+        // Use [\s,]+ between tokens so that iOS comma-punctuated input like
+        // "Bravo, Papa, Echo, Echo, Lima, 2K" is caught correctly.
+        ("(?i)\\bbravo[\\s,]+papa[\\s,]+(?:echo|eko)[\\s,]+(?:echo|eko)[\\s,]+lima[\\s,]+2k\\b", "BP EEL 2K", true),
+        ("(?i)\\bbravo[\\s,]+papa[\\s,]+(?:echo|eko)[\\s,]+(?:echo|eko)[\\s,]+lima\\b",           "BP EEL",    true),
+        ("(?i)\\bBPEEL\\s*2K\\b",               "BP EEL 2K", true),
+        ("(?i)\\bB\\s*PEEL\\s*2K\\b",           "BP EEL 2K", true),
+        ("(?i)\\bb[ei][\\s,]+peel[\\s,]*2k\\b", "BP EEL 2K", true),
+        ("(?i)\\bbravo[\\s,]+papa[\\s,]+eel[\\s,]+2k\\b", "BP EEL 2K", true),
+        // Broad catch-all: "B P" + 1–6 garbled/comma-separated tokens + "2K".
+        // Handles "B P EK,Ko, Ek, Komatke" → "BP EEL 2K" even without prior
+        // comma-stripping (iOS addsPunctuation inserts commas between tokens).
+        ("(?i)\\bB[\\s,]+P(?:[\\s,]+[A-Za-z0-9]+){1,6}[\\s,]+2[Kk]\\b", "BP EEL 2K", true),
+        ("(?i)\\bBP(?:[\\s,]+[A-Za-z0-9]+){1,6}[\\s,]+2[Kk]\\b",         "BP EEL 2K", true),
 
         // ── Quantity / "N by weapon" fusions ──────────────────────────────
         // "Dubai" is the top STT fusion of "two by" — highest priority.
@@ -210,7 +241,10 @@ final class SpeechCorrectionEngine {
         ("(?i)\\bsituat\\w+\\s+upd\\w+\\b",             "situation update",           true),
 
         // ── "bomb" ── STT conflates with "bump" in JTAC radio context ─────
-        ("(?i)\\bbump\\b",                          "bomb",                   true),
+        ("(?i)\\bbump\\b",                          "bomb",    true),
+
+        // ── "target" ── STT drops the "-get" syllable → "tart" ────────────
+        ("(?i)\\btart\\b",                          "target",  true),
     ]
 
     private func applyMultiTokenRules(_ input: String) -> String {
@@ -243,6 +277,144 @@ final class SpeechCorrectionEngine {
             if token == from { return to }
         }
         return token
+    }
+
+    // MARK: - NATO Phonetic Alphabet Collapse
+
+    // Maps each NATO phonetic word (and ALL known STT variants) to its letter.
+    // Rule: when a word appears here it ALWAYS becomes its letter unless it is
+    // in natoProtectedPhrases.  Variants are sourced from observed iOS STT
+    // output on JTAC radio audio.
+    private static let natoToLetter: [String: Character] = [
+        // A — alpha
+        "alpha": "A", "alfa": "A", "alfie": "A", "al-fa": "A",
+        // B — bravo
+        "bravo": "B",
+        // C — charlie
+        "charlie": "C", "charley": "C", "charly": "C", "charli": "C",
+        // D — delta
+        "delta": "D",
+        // E — echo
+        "echo": "E", "eko": "E",   // "eko" very common iOS variant
+        "teko": "E",               // user-reported: "sqarah teko" for "sierra echo"
+        "eco": "E",
+        // F — foxtrot
+        "foxtrot": "F",
+        "fox": "F",                // STT splits "foxtrot" → "fox trot"; "fox" → F
+        // G — golf
+        "golf": "G",
+        // H — hotel
+        "hotel": "H", "ho-tel": "H",
+        // I — india
+        "india": "I", "indie": "I", "indy": "I", "india's": "I",
+        // J — juliet
+        "juliet": "J", "juliett": "J", "julie": "J", "julio": "J",
+        // K — kilo
+        "kilo": "K", "killo": "K",
+        // L — lima
+        "lima": "L", "leema": "L",
+        // M — mike
+        "mike": "M",
+        // N — november
+        "november": "N", "novem": "N",
+        // O — oscar
+        "oscar": "O", "oskar": "O", "oscars": "O",
+        // P — papa
+        "papa": "P", "poppa": "P",
+        // Q — quebec
+        "quebec": "Q", "kebec": "Q", "kebeck": "Q", "keh-beck": "Q",
+        // R — romeo
+        "romeo": "R", "romero": "R",   // "romero" = extra syllable added by STT
+        // S — sierra
+        "sierra": "S",
+        "sqarah": "S",   // user-reported: "sqarah teko"
+        "sarah": "S",    // user-reported: iOS hears "sierra" as "sarah"
+        "sara": "S",     // truncated form
+        "saira": "S", "siara": "S", "seera": "S", "siera": "S",
+        "seara": "S", "ceara": "S", "see-ara": "S", "sear": "S",
+        // T — tango
+        "tango": "T",
+        // U — uniform
+        "uniform": "U", "uni": "U",
+        // V — victor
+        "victor": "V", "viktor": "V",
+        // W — whiskey
+        "whiskey": "W", "whisky": "W",
+        // X — x-ray
+        "xray": "X", "x-ray": "X", "x ray": "X",
+        // Y — yankee
+        "yankee": "Y",
+        // Z — zulu
+        "zulu": "Z",
+    ]
+
+    // Exact multi-word NATO sequences that are established brevity phrases and
+    // must NOT be collapsed to letters.
+    private static let natoProtectedPhrases: Set<String> = [
+        "lima charlie",   // loud and clear
+        "charlie mike",   // continue mission
+        "oscar mike",     // on the move
+        "tango mike",     // thanks much
+    ]
+
+    /// Collapses runs of NATO phonetic words into their letters.
+    /// Every NATO word — including single isolated ones — becomes its letter.
+    /// e.g.  "alpha"               → "A"
+    ///        "bravo papa echo"     → "BPE"
+    ///        "lima charlie"        → "lima charlie"  (protected brevity)
+    /// Runs after multiTokenRules, before phonetic normalisation.
+    private func applyNATOCollapse(_ input: String) -> String {
+        let tokens = input.components(separatedBy: " ").filter { !$0.isEmpty }
+        var out: [String] = []
+        var run: [(original: String, letter: Character)] = []
+
+        func flushRun() {
+            defer { run.removeAll() }
+            guard !run.isEmpty else { return }
+
+            // Check whether the entire run (or any sub-pair) is a protected phrase.
+            let lower = run.map { $0.original.lowercased() }.joined(separator: " ")
+            if Self.natoProtectedPhrases.contains(lower) {
+                // Preserve original words.
+                out.append(contentsOf: run.map { $0.original })
+                return
+            }
+
+            // For runs of 2+ check each consecutive pair too.
+            if run.count >= 2 {
+                var i = 0
+                while i < run.count {
+                    // Try to match a protected pair starting at i.
+                    if i + 1 < run.count {
+                        let pair = (run[i].original + " " + run[i+1].original).lowercased()
+                        if Self.natoProtectedPhrases.contains(pair) {
+                            out.append(run[i].original)
+                            out.append(run[i+1].original)
+                            i += 2
+                            continue
+                        }
+                    }
+                    out.append(String(run[i].letter))
+                    i += 1
+                }
+            } else {
+                // Single NATO word → its letter.
+                out.append(String(run[0].letter))
+            }
+        }
+
+        for token in tokens {
+            let key = token.lowercased()
+                .trimmingCharacters(in: .punctuationCharacters)
+            if let letter = Self.natoToLetter[key] {
+                run.append((original: token, letter: letter))
+            } else {
+                flushRun()
+                out.append(token)
+            }
+        }
+        flushRun()
+        return out.joined(separator: " ")
     }
 
     // MARK: - Phonetic Normalisation

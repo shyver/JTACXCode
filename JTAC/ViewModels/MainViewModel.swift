@@ -10,6 +10,10 @@ class MainViewModel: ObservableObject {
     @Published var permissionManager = PermissionManager()
     let audioManager = AudioRecordingManager()
     let jtacViewModel = JTACViewModel()
+
+    /// Tracks the full text from the last onSegmentCompleted callback so we
+    /// can compute the display delta for transcriptHistory entries.
+    private var lastReportedFullText = ""
     
     private var cancellables = Set<AnyCancellable>()
     
@@ -41,13 +45,30 @@ class MainViewModel: ObservableObject {
             }
             .store(in: &cancellables)
 
-        // Each pause-terminated segment arrives here, becomes a history entry,
-        // and is forwarded to JTACViewModel for structured parsing.
-        audioManager.onSegmentCompleted = { [weak self] text in
+        // onSegmentCompleted now delivers the FULL accumulated text of the
+        // current recording session on every silence commit.  We:
+        //  1. Extract only the NEW tail for the transcript history display.
+        //  2. Send the full text to JTACViewModel for a clean reset-and-reparse.
+        audioManager.onSegmentCompleted = { [weak self] fullText in
             guard let self else { return }
-            let entry = TranscriptEntry(text: text, timestamp: Date())
-            self.transcriptHistory.append(entry)
-            self.jtacViewModel.process(segment: text)
+
+            // Compute the new portion for display history.
+            let displayDelta: String
+            if fullText.hasPrefix(self.lastReportedFullText),
+               !self.lastReportedFullText.isEmpty {
+                displayDelta = String(fullText.dropFirst(self.lastReportedFullText.count))
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+            } else {
+                displayDelta = fullText
+            }
+            if !displayDelta.isEmpty {
+                let entry = TranscriptEntry(text: displayDelta, timestamp: Date())
+                self.transcriptHistory.append(entry)
+            }
+            self.lastReportedFullText = fullText
+
+            // Full re-parse — parser resets and processes everything.
+            self.jtacViewModel.reparse(fullText: fullText)
         }
     }
     
@@ -99,6 +120,7 @@ class MainViewModel: ObservableObject {
     func clearLiveTranscript() {
         liveTranscript = ""
         transcriptHistory.removeAll()
+        lastReportedFullText = ""
         jtacViewModel.reset()
     }
 }

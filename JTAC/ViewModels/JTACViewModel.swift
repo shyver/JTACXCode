@@ -1,5 +1,4 @@
 import Foundation
-import Combine
 
 class JTACViewModel: ObservableObject {
 
@@ -7,25 +6,34 @@ class JTACViewModel: ObservableObject {
     @Published var runningTranscript: String = ""
 
     /// Structured JTAC data extracted from the transcript. Updates after every segment.
+    /// **Set directly** by `reparse()` / `process()` — NOT via Combine observation.
+    /// This avoids the async hop that `.receive(on: DispatchQueue.main)` introduces,
+    /// which previously caused the report to flash empty on every silence commit.
     @Published var report: JTACReport = JTACReport()
 
     private let parser = JTACParser()
-    private var cancellables = Set<AnyCancellable>()
-
-    init() {
-        // Keep our published report in sync with the parser's published report.
-        parser.$report
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] newReport in
-                self?.report = newReport
-            }
-            .store(in: &cancellables)
-    }
 
     // MARK: - Public API
 
-    /// Call with each completed transcript segment.
-    /// Appends to runningTranscript and runs the parser.
+    /// Receives the **full accumulated transcript** from SpeechManager.
+    /// Resets the parser and re-processes the complete text from scratch every
+    /// time, eliminating any incremental-segment edge cases.
+    ///
+    /// The report is copied **synchronously** after processing so the UI
+    /// never sees an intermediate empty state.
+    func reparse(fullText: String) {
+        let trimmed = fullText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        runningTranscript = trimmed
+        parser.reset()
+        parser.process(segment: trimmed)
+        // Snapshot the fully-populated report in one atomic write.
+        // No Combine hop → the UI goes directly from old-report to new-report
+        // with zero intermediate empty state.
+        report = parser.report
+    }
+
+    /// Legacy incremental API — still used by manual injection if needed.
     func process(segment: String) {
         let trimmed = segment.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
@@ -37,6 +45,7 @@ class JTACViewModel: ObservableObject {
         }
 
         parser.process(segment: trimmed)
+        report = parser.report
     }
 
     /// Resets all state — call when starting a new mission/session.
@@ -97,15 +106,15 @@ class JTACViewModel: ObservableObject {
         case "9 Line":
             guard let nl = report.nineLine else { return "" }
             var lines: [String] = []
-            if let v = nl.ip                { lines.append("Line 1 (IP): \(v)") }
-            if let v = nl.heading           { lines.append("Line 2 (Heading): \(v)") }
-            if let v = nl.distance          { lines.append("Line 3 (Distance): \(v)") }
-            if let v = nl.targetElevation   { lines.append("Line 4 (Elevation): \(v)") }
-            if let v = nl.targetDescription { lines.append("Line 5 (Target): \(v)") }
-            if let v = nl.targetMark        { lines.append("Line 6 (Mark): \(v)") }
-            if let v = nl.friendlies        { lines.append("Line 7 (Friendlies): \(v)") }
-            if let v = nl.egress            { lines.append("Line 8 (Egress): \(v)") }
-            if let v = nl.remarksLine       { lines.append("Line 9 (Remarks): \(v)") }
+            if let v = nl.ip                { lines.append("Line 1  IP              : \(v)") }
+            if let v = nl.heading           { lines.append("Line 2  Heading         : \(v)") }
+            if let v = nl.distance          { lines.append("Line 3  Distance        : \(v)") }
+            if let v = nl.targetElevation   { lines.append("Line 4  Elevation       : \(v)") }
+            if let v = nl.targetDescription { lines.append("Line 5  Target Desc     : \(v)") }
+            if let v = nl.targetMark        { lines.append("Line 6  Location (MGRS) : \(v)") }
+            if let v = nl.friendlies        { lines.append("Line 7  Mark Type       : \(v)") }
+            if let v = nl.egress            { lines.append("Line 8  Friendlies      : \(v)") }
+            if let v = nl.remarksLine       { lines.append("Line 9  Egress/Remarks  : \(v)") }
             return lines.joined(separator: "\n")
 
         case "Remarks":

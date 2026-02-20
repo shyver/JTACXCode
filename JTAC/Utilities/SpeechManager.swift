@@ -44,7 +44,10 @@ final class SpeechManager: NSObject, ObservableObject {
 
     // MARK: - Callbacks
 
-    /// Fired on the main thread with fully corrected text when silence ends a transmission.
+    /// Fired on the main thread with the **full accumulated text** of the
+    /// current recording session whenever a silence commit or stop occurs.
+    /// Callers should treat each invocation as a complete snapshot — not
+    /// an incremental segment.  The parser should reset-and-reparse.
     var onSegmentCompleted: ((String) -> Void)?
 
     /// Fired whenever low-confidence flags are found in a result.
@@ -67,13 +70,23 @@ final class SpeechManager: NSObject, ObservableObject {
 
     /// Text accumulated from previous task cycles within the current transmission.
     /// Always kept in sync with transcribedText so nothing is ever invisible.
-    /// Only cleared by the silence timer or stopRecording — never by a task reset.
+    /// Only cleared by stopRecording — never by a task restart or silence commit.
     private var displayPrefix = ""
 
-    /// Dynamic silence threshold — extends for long 9-line readouts.
+    /// Dynamic silence threshold — extends as the transmission grows longer.
+    /// Uses the total accumulated text (displayPrefix + current partial) so that
+    /// long 9-line briefs delivered across multiple task cycles are not cut off
+    /// prematurely between lines.
     private var silenceThreshold: TimeInterval {
-        let wordCount = transcribedText.split(separator: " ").count
-        return wordCount > 15 ? 3.0 : 1.8
+        let totalText = (displayPrefix + " " + transcribedText)
+            .split(separator: " ")
+            .filter { !$0.isEmpty }
+        let wordCount = totalText.count
+        switch wordCount {
+        case 0..<8:  return 3.5   // short phrase — still absorbs a thinking pause
+        case 8..<20: return 5.0   // mid-length / entering 9-line groups
+        default:     return 6.0   // long 9-line / SITREP — don't cut between lines
+        }
     }
 
     // MARK: - Initialisation
@@ -196,7 +209,7 @@ final class SpeechManager: NSObject, ObservableObject {
         // Gracefully cycle the recognition task so it picks up the new model.
         // The audio engine keeps running — no gap in audio capture.
         print("[SpeechManager] Phase → \(currentPhase.rawValue), cycling task")
-        cycleRecognitionTask()
+        commitAndContinue()
     }
 
     /// Restarts the recognition task without ending the current transmission.
@@ -206,6 +219,7 @@ final class SpeechManager: NSObject, ObservableObject {
         // Snapshot current display text into the prefix so the operator
         // never sees anything disappear between task cycles.
         let current = transcribedText.trimmingCharacters(in: .whitespaces)
+        print("[SpeechManager] restartTaskInPlace  transcribed=(\(current.prefix(60)))  prefix=(\(displayPrefix.prefix(40)))")
         if !current.isEmpty {
             displayPrefix = current
         }
@@ -217,29 +231,30 @@ final class SpeechManager: NSObject, ObservableObject {
         startNewRecognitionTask()
     }
 
-    /// Called only by the silence cutoff and phase-change: ends the current
-    /// transmission, commits the text, then starts a fresh task.
-    private func cycleRecognitionTask() {
+    /// Commits the **full accumulated text** to the parser and restarts the
+    /// recognition task **without clearing the display**.  The operator always
+    /// sees all text from this recording session.
+    ///
+    /// The callback receives the complete `transcribedText` snapshot each time.
+    /// The receiving parser is expected to reset-and-reparse from scratch, which
+    /// eliminates every possible incremental-dedup edge case.
+    private func commitAndContinue() {
         silenceWorkItem?.cancel()
         silenceWorkItem = nil
 
-        // Silence cutoff already cleared transcribedText before calling here.
-        // On a phase-change call, commit whatever is still on screen.
-        let partial = transcribedText.trimmingCharacters(in: .whitespaces)
-        if !partial.isEmpty {
-            transcribedText = ""
-            criticalConfidenceAlert = false
-            onSegmentCompleted?(partial)
+        let fullText = transcribedText.trimmingCharacters(in: .whitespaces)
+        print("[SpeechManager] commitAndContinue  fullText=(\(fullText.prefix(60)))  len=\(fullText.count)")
+        guard !fullText.isEmpty else {
+            restartTaskInPlace()
+            return
         }
 
-        // Clear the prefix — new task = new transmission.
-        displayPrefix = ""
+        // Always send the full accumulated text.
+        onSegmentCompleted?(fullText)
 
-        recognitionTask?.cancel()
-        recognitionRequest?.endAudio()
-        recognitionTask = nil
-        recognitionRequest = nil
-        startNewRecognitionTask()
+        // Restart the recognition task but keep displayPrefix / transcribedText
+        // intact so the operator never sees text disappear.
+        restartTaskInPlace()
     }
 
     // MARK: - Recording
@@ -253,7 +268,7 @@ final class SpeechManager: NSObject, ObservableObject {
 
         recognitionTask?.cancel()
         recognitionTask = nil
-        displayPrefix = ""   // fresh recording session
+        displayPrefix = ""        // fresh recording session
 
         let session = AVAudioSession.sharedInstance()
         try session.setCategory(.record, mode: .measurement, options: .duckOthers)
@@ -292,13 +307,13 @@ final class SpeechManager: NSObject, ObservableObject {
         silenceWorkItem?.cancel()
         silenceWorkItem = nil
 
-        // Commit whatever is on screen, then tear everything down.
-        let partial = transcribedText.trimmingCharacters(in: .whitespaces)
+        // Send the full accumulated text for a final re-parse, then tear down.
+        let fullText = transcribedText.trimmingCharacters(in: .whitespaces)
+        if !fullText.isEmpty {
+            onSegmentCompleted?(fullText)
+        }
         transcribedText = ""
         displayPrefix = ""
-        if !partial.isEmpty {
-            onSegmentCompleted?(partial)
-        }
 
         recognitionRequest?.endAudio()
         recognitionTask?.cancel()
@@ -359,10 +374,10 @@ final class SpeechManager: NSObject, ObservableObject {
 
                     if result.isFinal {
                         // ── Involuntary task end (iOS time/noise limit) ────────
-                        // The operator is likely still speaking. Do NOT commit —
-                        // absorb current display text into displayPrefix so it
-                        // stays visible, then restart the task transparently.
-                        // The silence timer is the only thing that commits.
+                        // iOS fires isFinal on every natural pause, often within
+                        // 1–2 seconds of silence.  This is the PRIMARY commit
+                        // path — NOT the silence timer (which isFinal pre-empts
+                        // by cancelling it via the task restart).
                         //
                         // Use whichever text is longer — iOS sometimes shortens
                         // on its final pass.
@@ -370,11 +385,9 @@ final class SpeechManager: NSObject, ObservableObject {
                             ? corrected.text : self.transcribedText
                         let trimmed = best.trimmingCharacters(in: .whitespaces)
                         if !trimmed.isEmpty {
-                            self.displayPrefix = trimmed
-                            // Keep transcribedText showing the full text so
-                            // nothing ever disappears from the operator's view.
                             self.transcribedText = trimmed
                         }
+                        print("[SpeechManager] isFinal → commitAndContinue  text=(\(self.transcribedText.prefix(80)))")
 
                         if !corrected.lowConfidenceFlags.isEmpty {
                             self.onLowConfidenceDetected?(corrected.lowConfidenceFlags)
@@ -384,7 +397,10 @@ final class SpeechManager: NSObject, ObservableObject {
                         }
 
                         if self.isRecording {
-                            self.restartTaskInPlace()
+                            // Commit text to parser AND restart task.
+                            // commitAndContinue sends the full accumulated text
+                            // then calls restartTaskInPlace (preserves display).
+                            self.commitAndContinue()
                         }
 
                     } else {
@@ -412,9 +428,10 @@ final class SpeechManager: NSObject, ObservableObject {
 
                 } else if self.isRecording {
                     // ── Task died (error OR iOS nil/nil cancellation) ──────────
-                    // Do NOT commit — restart in place. The silence timer will
-                    // commit when the operator actually stops speaking.
-                    self.restartTaskInPlace()
+                    // Commit whatever we have so the parser stays current, then
+                    // restart the task transparently.
+                    print("[SpeechManager] task died → commitAndContinue  text=(\(self.transcribedText.prefix(60)))")
+                    self.commitAndContinue()
                 }
             }
         }
@@ -428,16 +445,9 @@ final class SpeechManager: NSObject, ObservableObject {
 
         let item = DispatchWorkItem { [weak self] in
             guard let self, self.isRecording else { return }
-            let text = self.transcribedText.trimmingCharacters(in: .whitespaces)
-            guard !text.isEmpty else { return }
-
-            // End this transmission segment.
-            self.transcribedText = ""
-            self.displayPrefix   = ""   // reset for the next transmission
-            self.criticalConfidenceAlert = false
-            self.onSegmentCompleted?(text)
-            // transcribedText is empty; cycleRecognitionTask won't double-commit.
-            self.cycleRecognitionTask()
+            // Commit new text to the parser but keep the display intact.
+            // The operator should never see text vanish mid-recording.
+            self.commitAndContinue()
         }
 
         silenceWorkItem = item
