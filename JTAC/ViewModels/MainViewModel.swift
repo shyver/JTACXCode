@@ -6,7 +6,12 @@ class MainViewModel: ObservableObject {
     @Published var isRecording = false
     @Published var liveTranscript = ""
     @Published var transcriptHistory: [TranscriptEntry] = []
-    
+    @Published var missionData: MissionData?
+
+    // Shared state: selected NineLine tab id (used by both collapsed + expanded views).
+    // Note: kept as a raw string so MainViewModel doesn't depend on NineLineTabs target membership.
+    @Published var selectedNineLineCategory: String = "nineLineBrief"
+
     @Published var permissionManager = PermissionManager()
     let audioManager = AudioRecordingManager()
     let jtacViewModel = JTACViewModel()
@@ -29,6 +34,14 @@ class MainViewModel: ObservableObject {
         let text: String
         let timestamp: Date
     }
+    
+    /// One-shot signal for returning to the main menu (Home).
+    /// ContentView observes this and flips AppScreen to `.home`.
+    @Published var shouldReturnToHome: Bool = false
+
+    /// One-shot signal for returning to mission setup (New Mission).
+    /// ContentView observes this and flips AppScreen to `.newMission`.
+    @Published var shouldReturnToNewMission: Bool = false
     
     init() {
         // Mirror live partial text into the view
@@ -122,5 +135,29 @@ class MainViewModel: ObservableObject {
         transcriptHistory.removeAll()
         lastReportedFullText = ""
         jtacViewModel.reset()
+    }
+    
+    func requestReturnToHome() {
+        shouldReturnToHome = true
+    }
+
+    func consumeReturnToHomeRequest() {
+        shouldReturnToHome = false
+    }
+
+    func requestReturnToNewMission() {
+        shouldReturnToNewMission = true
+    }
+
+    func consumeReturnToNewMissionRequest() {
+        shouldReturnToNewMission = false
+    }
+
+    // MARK: - Mission updates
+    /// Updates the mission's CAS check-in abort code (provided mid-air).
+    func updateAbortCode(_ newValue: String) {
+        guard var mission = missionData else { return }
+        mission.casCheckin.abortCode = newValue
+        missionData = mission
     }
 }

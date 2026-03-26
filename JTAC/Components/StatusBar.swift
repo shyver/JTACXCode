@@ -2,20 +2,47 @@ import SwiftUI
 
 struct StatusBar: View {
     @ObservedObject var viewModel: MainViewModel
-    
+
+    private var authenticationText: String? {
+        let auth = viewModel.missionData?.authentication.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return auth.isEmpty ? nil : auth
+    }
+
     var body: some View {
         HStack {
-            // GPS indicator
-            HStack(spacing: 8) {
-                Image(systemName: "location.fill")
-                    .foregroundColor(.white)
-                Text("GPS")
+            // Back to main menu
+            Button(action: {
+                viewModel.requestReturnToNewMission()
+            }) {
+                HStack(spacing: 8) {
+                    Image(systemName: "chevron.left")
+                        .foregroundColor(.white)
+                    Text("Menu")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundColor(.white)
+                }
+            }
+            .buttonStyle(PlainButtonStyle())
+
+            Spacer()
+
+            // Center: Authentication
+            if let auth = authenticationText {
+                Text(auth)
                     .font(.system(size: 18, weight: .semibold))
                     .foregroundColor(.white)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                    .frame(maxWidth: .infinity)
+            } else {
+                // Keep center space reserved so layout doesn't jump by using an empty Text view with the same font.
+                Text("")
+                    .font(.system(size: 18, weight: .semibold))
+                    .frame(maxWidth: .infinity)
             }
-            
+
             Spacer()
-            
+
             // Recording button
             Button(action: {
                 viewModel.toggleRecording()

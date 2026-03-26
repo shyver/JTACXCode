@@ -7,6 +7,16 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		4F9D8DAF2F718A7200D57CF8 /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F9D8DAD2F718A7200D57CF8 /* HomeView.swift */; };
+		4F9D8DB02F718A7200D57CF8 /* NewMissionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F9D8DAE2F718A7200D57CF8 /* NewMissionView.swift */; };
+		4F9D8DB22F71C53A00D57CF8 /* MissionData.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F9D8DB12F71C53A00D57CF8 /* MissionData.swift */; };
+		4F9D8DB42F72C8D900D57CF8 /* NineLineTabs.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F9D8DB32F72C8D900D57CF8 /* NineLineTabs.swift */; };
+		4F9D8DB62F75A76200D57CF8 /* AppNavigation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F9D8DB52F75A76200D57CF8 /* AppNavigation.swift */; };
+		4F9D8DBC2F75A81D00D57CF8 /* DatabaseRootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F9D8DBA2F75A81D00D57CF8 /* DatabaseRootView.swift */; };
+		4F9D8DBD2F75A81D00D57CF8 /* RedsListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F9D8DBB2F75A81D00D57CF8 /* RedsListView.swift */; };
+		4F9D8DBE2F75A81D00D57CF8 /* AssetsCallsignsListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F9D8DB82F75A81D00D57CF8 /* AssetsCallsignsListView.swift */; };
+		4F9D8DBF2F75A81D00D57CF8 /* DatabaseModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F9D8DB92F75A81D00D57CF8 /* DatabaseModels.swift */; };
+		4F9D8DC02F75A81D00D57CF8 /* AirDefenseListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F9D8DB72F75A81D00D57CF8 /* AirDefenseListView.swift */; };
 		846626ED2F297042002935DE /* JTACApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 846626EC2F297042002935DE /* JTACApp.swift */; };
 		846626F12F297042002935DE /* Item.swift in Sources */ = {isa = PBXBuildFile; fileRef = 846626F02F297042002935DE /* Item.swift */; };
 		846626F32F297044002935DE /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 846626F22F297044002935DE /* Assets.xcassets */; };
@@ -55,6 +65,16 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		4F9D8DAD2F718A7200D57CF8 /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
+		4F9D8DAE2F718A7200D57CF8 /* NewMissionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NewMissionView.swift; sourceTree = "<group>"; };
+		4F9D8DB12F71C53A00D57CF8 /* MissionData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MissionData.swift; sourceTree = "<group>"; };
+		4F9D8DB32F72C8D900D57CF8 /* NineLineTabs.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NineLineTabs.swift; sourceTree = "<group>"; };
+		4F9D8DB52F75A76200D57CF8 /* AppNavigation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppNavigation.swift; sourceTree = "<group>"; };
+		4F9D8DB72F75A81D00D57CF8 /* AirDefenseListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AirDefenseListView.swift; sourceTree = "<group>"; };
+		4F9D8DB82F75A81D00D57CF8 /* AssetsCallsignsListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssetsCallsignsListView.swift; sourceTree = "<group>"; };
+		4F9D8DB92F75A81D00D57CF8 /* DatabaseModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DatabaseModels.swift; sourceTree = "<group>"; };
+		4F9D8DBA2F75A81D00D57CF8 /* DatabaseRootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DatabaseRootView.swift; sourceTree = "<group>"; };
+		4F9D8DBB2F75A81D00D57CF8 /* RedsListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RedsListView.swift; sourceTree = "<group>"; };
 		846626E92F297042002935DE /* JTAC.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = JTAC.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		846626EC2F297042002935DE /* JTACApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JTACApp.swift; sourceTree = "<group>"; };
 		846626F02F297042002935DE /* Item.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Item.swift; sourceTree = "<group>"; };
@@ -181,6 +201,9 @@
 		846627192F297BA7002935DE /* Models */ = {
 			isa = PBXGroup;
 			children = (
+				4F9D8DB52F75A76200D57CF8 /* AppNavigation.swift */,
+				4F9D8DB32F72C8D900D57CF8 /* NineLineTabs.swift */,
+				4F9D8DB12F71C53A00D57CF8 /* MissionData.swift */,
 				8466271A2F297BD2002935DE /* AppNavigation.swift */,
 				8466273B2F2CDB00002935DE /* JTACModels.swift */,
 			);
@@ -199,6 +222,13 @@
 		8466271F2F297CB0002935DE /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				4F9D8DB72F75A81D00D57CF8 /* AirDefenseListView.swift */,
+				4F9D8DB82F75A81D00D57CF8 /* AssetsCallsignsListView.swift */,
+				4F9D8DB92F75A81D00D57CF8 /* DatabaseModels.swift */,
+				4F9D8DBA2F75A81D00D57CF8 /* DatabaseRootView.swift */,
+				4F9D8DBB2F75A81D00D57CF8 /* RedsListView.swift */,
+				4F9D8DAD2F718A7200D57CF8 /* HomeView.swift */,
+				4F9D8DAE2F718A7200D57CF8 /* NewMissionView.swift */,
 				846627202F297CCA002935DE /* MainView.swift */,
 				846627222F297D06002935DE /* LiveTranscriptView.swift */,
 				846627242F297D32002935DE /* NineLineView.swift */,
@@ -367,6 +397,12 @@
 				846627232F297D06002935DE /* LiveTranscriptView.swift in Sources */,
 				846627272F297D5F002935DE /* MapView.swift in Sources */,
 				846627252F297D32002935DE /* NineLineView.swift in Sources */,
+				4F9D8DBC2F75A81D00D57CF8 /* DatabaseRootView.swift in Sources */,
+				4F9D8DBD2F75A81D00D57CF8 /* RedsListView.swift in Sources */,
+				4F9D8DBE2F75A81D00D57CF8 /* AssetsCallsignsListView.swift in Sources */,
+				4F9D8DBF2F75A81D00D57CF8 /* DatabaseModels.swift in Sources */,
+				4F9D8DC02F75A81D00D57CF8 /* AirDefenseListView.swift in Sources */,
+				4F9D8DB62F75A76200D57CF8 /* AppNavigation.swift in Sources */,
 				846627332F297E67002935DE /* AppColors.swift in Sources */,
 				8466272C2F297DD8002935DE /* MinimizeButton.swift in Sources */,
 				8466271B2F297BD2002935DE /* AppNavigation.swift in Sources */,
@@ -378,13 +414,17 @@
 				8466272E2F297DFE002935DE /* StatusBar.swift in Sources */,
 				846627302F297E25002935DE /* ActionButton.swift in Sources */,
 				846627352F2CDA01002935DE /* MicrophonePermissionManager.swift in Sources */,
+				4F9D8DB22F71C53A00D57CF8 /* MissionData.swift in Sources */,
 				846627372F2CDA20002935DE /* AudioRecordingManager.swift in Sources */,
 				846627392F2CDA30002935DE /* PermissionManager.swift in Sources */,
 				8466273C2F2CDB01002935DE /* JTACModels.swift in Sources */,
 				8466273E2F2CDB11002935DE /* JTACParser.swift in Sources */,
 				8466273F2F2CDB20002935DE /* JTACViewModel.swift in Sources */,
+				4F9D8DAF2F718A7200D57CF8 /* HomeView.swift in Sources */,
+				4F9D8DB02F718A7200D57CF8 /* NewMissionView.swift in Sources */,
 				846627412F2CDD00002935DE /* JTACLanguageModel.swift in Sources */,
 				846627422F2CDE00002935DE /* CustomLanguageModelBuilder.swift in Sources */,
+				4F9D8DB42F72C8D900D57CF8 /* NineLineTabs.swift in Sources */,
 				846627442F2CDE10002935DE /* SpeechCorrectionEngine.swift in Sources */,
 				846627462F2CDE20002935DE /* SpeechManager.swift in Sources */,
 			);

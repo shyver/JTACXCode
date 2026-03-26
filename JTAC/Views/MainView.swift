@@ -11,15 +11,22 @@ struct MainView: View {
                 // StatusBar at the top
                 StatusBar(viewModel: viewModel)
                 
+                
                 // Top half: Live Transcript (left) + 9 Line (right)
-                HStack(spacing: 0) {
-                    // Live Radio Transcript Section (Top Left)
-                    LiveTranscriptSection(viewModel: viewModel)
-                        .frame(maxWidth: .infinity)
-                    
-                    // 9 Line Section (Top Right)
-                    NineLineSection(viewModel: viewModel, jtacViewModel: viewModel.jtacViewModel)
-                        .frame(maxWidth: .infinity)
+                GeometryReader { geo in
+                    let totalWidth = geo.size.width
+                    let transcriptWidth = totalWidth * 0.45
+                    let nineLineWidth = totalWidth - transcriptWidth
+
+                    HStack(spacing: 0) {
+                        // Live Radio Transcript Section (Top Left)
+                        LiveTranscriptSection(viewModel: viewModel)
+                            .frame(width: transcriptWidth)
+
+                        // 9 Line Section (Top Right)
+                        NineLineSection(viewModel: viewModel, jtacViewModel: viewModel.jtacViewModel)
+                            .frame(width: nineLineWidth)
+                    }
                 }
                 .frame(height: UIScreen.main.bounds.height * 0.5)
                 
@@ -34,7 +41,13 @@ struct MainView: View {
 // MARK: - Live Transcript Section (Top Left)
 struct LiveTranscriptSection: View {
     @ObservedObject var viewModel: MainViewModel
-    
+
+    private let maxHistoryEntries: Int = 80
+
+    private var displayedHistory: [MainViewModel.TranscriptEntry] {
+        Array(viewModel.transcriptHistory.suffix(maxHistoryEntries))
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack {
@@ -61,41 +74,41 @@ struct LiveTranscriptSection: View {
             .padding(.bottom, 10)
             
             // Tappable transcript area
-            Button(action: {
-                viewModel.navigateTo(.liveTranscript)
-            }) {
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 12) {
-                        // Show live transcript if recording
-                        if viewModel.isRecording && !viewModel.liveTranscript.isEmpty {
-                            TranscriptLine(text: viewModel.liveTranscript)
-                                .padding(8)
-                                .background(Color.blue.opacity(0.2))
-                                .cornerRadius(8)
-                        }
-                        
-                        // Show transcript history
-                        ForEach(viewModel.transcriptHistory.reversed()) { entry in
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(entry.timestamp, style: .time)
-                                    .font(.system(size: 12))
-                                    .foregroundColor(.gray)
-                                TranscriptLine(text: entry.text)
-                            }
-                        }
-                        
-                        // Placeholder if nothing
-                        if !viewModel.isRecording && viewModel.transcriptHistory.isEmpty {
-                            TranscriptLine(text: "Press the record button to start transcribing...")
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: 12) {
+                    // Show transcript history (chronological)
+                    ForEach(displayedHistory) { entry in
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(entry.timestamp, style: .time)
+                                .font(.system(size: 12))
                                 .foregroundColor(.gray)
+                            TranscriptLine(text: entry.text)
                         }
                     }
-                    .padding(15)
+
+                    // Show live transcript if recording (at bottom)
+                    if viewModel.isRecording && !viewModel.liveTranscript.isEmpty {
+                        TranscriptLine(text: viewModel.liveTranscript)
+                            .padding(8)
+                            .background(Color.blue.opacity(0.2))
+                            .cornerRadius(8)
+                    }
+
+                    // Placeholder if nothing
+                    if !viewModel.isRecording && displayedHistory.isEmpty {
+                        TranscriptLine(text: "Press the record button to start transcribing...")
+                            .foregroundColor(.gray)
+                    }
                 }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background(AppColors.transcriptBackground)
+                .padding(15)
             }
-            .buttonStyle(PlainButtonStyle())
+            .scrollDismissesKeyboard(.interactively)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(AppColors.transcriptBackground)
+            .contentShape(Rectangle())
+            .onTapGesture {
+                viewModel.navigateTo(.liveTranscript)
+            }
             
             // Action buttons
             HStack(spacing: 10) {
@@ -117,71 +130,108 @@ struct LiveTranscriptSection: View {
 struct NineLineSection: View {
     @ObservedObject var viewModel: MainViewModel
     @ObservedObject var jtacViewModel: JTACViewModel
-    @State private var selectedCategory: String = "9 Line"
 
-    let categories = ["CAS", "SOF", "S. UPDATE", "9 Line", "Remarks", "Restrictions", "BDA", "GamePlan"]
+    // Use shared selection so it persists when expanding.
+    private var selectedTabId: Binding<String> { $viewModel.selectedNineLineCategory }
+
+    private var tabs: [NineLineTab] { NineLineTabs.all }
+
+    private var selectedTab: NineLineTab {
+        NineLineTabs.tab(for: selectedTabId.wrappedValue) ?? NineLineTabs.all.first!
+    }
 
     var body: some View {
         HStack(spacing: 0) {
             // Left sidebar — category switcher, does NOT expand
-            VStack(spacing: 8) {
-                ForEach(categories, id: \.self) { category in
-                    Button(action: { selectedCategory = category }) {
+            VStack(spacing: 6) {
+                ForEach(tabs) { tab in
+                    Button(action: { selectedTabId.wrappedValue = tab.id }) {
                         HStack {
-                            Text(category)
-                                .font(.system(size: 14,
-                                              weight: selectedCategory == category ? .semibold : .regular))
+                            Text(tab.shortTitle)
+                                .font(.system(size: 13,
+                                              weight: selectedTabId.wrappedValue == tab.id ? .semibold : .regular))
                                 .foregroundColor(.white)
                                 .frame(maxWidth: .infinity, alignment: .leading)
-                            if jtacViewModel.hasData(for: category) {
-                                Circle().fill(Color.green).frame(width: 7, height: 7)
+                            if jtacViewModel.hasData(for: tab.jtacCategoryKey) {
+                                Circle().fill(Color.green).frame(width: 6, height: 6)
                             }
                         }
-                        .padding(.horizontal, 8)
+                        .padding(.horizontal, 4)
                         .frame(maxWidth: .infinity)
-                        .frame(height: 50)
-                        .background(selectedCategory == category
+                        .frame(height: 44)
+                        .background(selectedTabId.wrappedValue == tab.id
                                     ? AppColors.selectedCategory
                                     : AppColors.categoryButton)
                         .cornerRadius(6)
                     }
-                    .padding(.horizontal, 8)
+                    .padding(.horizontal, 6)
                 }
                 Spacer()
             }
-            .frame(width: 140)
+            .frame(width: 90)
             .background(AppColors.sidebarBackground)
 
-            // Right content area — tappable to expand, shows live report data
-            Button(action: { viewModel.navigateTo(.nineLine) }) {
-                VStack(alignment: .leading, spacing: 10) {
-                    Text(selectedCategory)
-                        .font(.system(size: 24, weight: .bold))
-                        .foregroundColor(.white)
-                        .padding(.top, 15)
-                        .padding(.horizontal, 15)
+            // Right content area — tappable to expand
+            VStack(alignment: .leading, spacing: 8) {
+                Text(selectedTab.title)
+                    .font(.system(size: 22, weight: .bold))
+                    .foregroundColor(.white)
+                    .padding(.top, 10)
+                    .padding(.horizontal, 8)
 
-                    let text = jtacViewModel.content(for: selectedCategory)
-                    ScrollView {
-                        if text.isEmpty {
-                            NineLineText(text: "No data yet for \(selectedCategory).")
-                                .foregroundColor(.gray)
-                                .padding(15)
+                ScrollView {
+                    // Mission-driven sections
+                    if selectedTab.id == "casCheckIn" || selectedTab.jtacCategoryKey == "CAS" {
+                        if let _ = viewModel.missionData {
+                            CASCheckinDetailView(viewModel: viewModel, isCompact: true)
+                                .padding(.horizontal, 10)
+                                .padding(.bottom, 10)
                         } else {
-                            Text(text)
-                                .font(.system(size: 15))
+                            Text("No CAS check-in data available.")
+                                .font(.system(size: 14))
+                                .foregroundColor(.gray)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(10)
+                        }
+                    } else if selectedTab.id == "authentication" {
+                        let auth = viewModel.missionData?.authentication.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+                        if auth.isEmpty {
+                            Text("No authentication set.")
+                                .font(.system(size: 14))
+                                .foregroundColor(.gray)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(10)
+                        } else {
+                            Text(auth)
+                                .font(.system(size: 18, weight: .semibold))
                                 .foregroundColor(.white)
                                 .frame(maxWidth: .infinity, alignment: .leading)
-                                .padding(15)
+                                .padding(10)
+                        }
+                    } else {
+                        let text = jtacViewModel.content(for: selectedTab.jtacCategoryKey)
+                        if text.isEmpty {
+                            NineLineText(text: "No data yet for \(selectedTab.title).")
+                                .foregroundColor(.gray)
+                                .padding(10)
+                        } else {
+                            Text(text)
+                                .font(.system(size: 14))
+                                .foregroundColor(.white)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(10)
                         }
                     }
-                    .background(AppColors.transcriptBackground)
-                    .padding(.horizontal, 15)
-                    .padding(.bottom, 15)
                 }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(AppColors.transcriptBackground)
+                .padding(.horizontal, 8)
+                .padding(.bottom, 8)
             }
-            .buttonStyle(PlainButtonStyle())
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .contentShape(Rectangle())
+            .onTapGesture {
+                viewModel.navigateTo(.nineLine)
+            }
         }
         .background(Color.black)
     }
