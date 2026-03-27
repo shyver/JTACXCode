@@ -9,61 +9,89 @@ struct AirDefenseListView: View {
     @State private var showingAddSheet = false
     @State private var editingSystem: AirDefenseSystem?
 
+    private var groupedSystems: [AirDefenseType: [AirDefenseSystem]] {
+        Dictionary(grouping: systems, by: { $0.type })
+    }
+
     var body: some View {
-        List {
-            if systems.isEmpty {
-                ContentUnavailableView("No AAA/SAM entries", systemImage: "dot.radiowaves.left.and.right", description: Text("Tap + to add a system."))
-                    .listRowBackground(Color.clear)
-            }
+        ZStack {
+            List {
+                if systems.isEmpty {
+                    ContentUnavailableView("No AAA & SAMs", systemImage: "shield", description: Text("Tap + to add an air defense system."))
+                        .listRowBackground(Color.clear)
+                } else {
+                    ForEach(AirDefenseType.allCases) { type in
+                        if let items = groupedSystems[type], !items.isEmpty {
+                            Section {
+                                ForEach(items) { system in
+                                    Button {
+                                        editingSystem = system
+                                    } label: {
+                                        VStack(alignment: .leading, spacing: 6) {
+                                            Text(system.name.isEmpty ? "(Unnamed)" : system.name)
+                                                .font(.headline)
+                                                .foregroundColor(.white)
 
-            ForEach(systems) { system in
-                Button {
-                    editingSystem = system
-                } label: {
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text(system.name.isEmpty ? "(Unnamed)" : system.name)
-                            .font(.headline)
-                            .foregroundColor(.white)
+                                            HStack(spacing: 12) {
+                                                Text(String(format: "Range: %.1f NM", system.maxEffectiveRangeNM))
+                                                    .font(.subheadline)
+                                                    .foregroundColor(.secondary)
+                                                Text("Alt: \(system.maxAltitudeFt) ft")
+                                                    .font(.subheadline)
+                                                    .foregroundColor(.secondary)
+                                            }
 
-                        HStack(spacing: 12) {
-                            Text(String(format: "Range: %.1f NM", system.maxEffectiveRangeNM))
-                                .font(.subheadline)
-                                .foregroundColor(.secondary)
-                            Text("Alt: \(system.maxAltitudeFt) ft")
-                                .font(.subheadline)
-                                .foregroundColor(.secondary)
-                        }
-
-                        if !system.guidance.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                            Text("Guidance: \(system.guidance)")
-                                .font(.subheadline)
-                                .foregroundColor(.white.opacity(0.9))
-                                .lineLimit(1)
+                                            if !system.guidance.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                                                Text("Guidance: \(system.guidance)")
+                                                    .font(.subheadline)
+                                                    .foregroundColor(.white.opacity(0.9))
+                                                    .lineLimit(1)
+                                            }
+                                        }
+                                        .contentShape(Rectangle())
+                                    }
+                                    .buttonStyle(.plain)
+                                    .listRowBackground(Color.black.opacity(0.25))
+                                }
+                                .onDelete { indexSet in
+                                    for index in indexSet {
+                                        modelContext.delete(items[index])
+                                    }
+                                }
+                            } header: {
+                                Text(type.rawValue)
+                                    .font(.headline)
+                                    .foregroundColor(.white)
+                                    .frame(maxWidth: .infinity, alignment: .center)
+                                    .padding(.vertical, 8)
+                                    .background(Color.gray.opacity(0.3))
+                                    .textCase(nil)
+                            }
                         }
                     }
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .listRowBackground(Color.black.opacity(0.25))
-                .swipeActions {
-                    Button(role: .destructive) {
-                        modelContext.delete(system)
-                    } label: {
-                        Label("Delete", systemImage: "trash")
-                    }
                 }
             }
-        }
-        .scrollContentBackground(.hidden)
-        .background(Color.black)
-        .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
+            .scrollContentBackground(.hidden)
+            .background(Color.black)
+
+            VStack {
+                Spacer()
                 Button {
                     showingAddSheet = true
                 } label: {
-                    Image(systemName: "plus")
-                        .foregroundColor(.white)
+                    HStack {
+                        Image(systemName: "plus")
+                        Text("Add System")
+                    }
+                    .font(.title2.weight(.bold))
+                    .padding(.vertical, 14)
+                    .padding(.horizontal, 24)
+                    .background(Color.blue)
+                    .foregroundColor(.white)
+                    .clipShape(Capsule())
+                    .shadow(radius: 4)
                 }
+                .padding(.bottom, 30)
             }
         }
         .sheet(isPresented: $showingAddSheet) {
@@ -93,6 +121,11 @@ private struct AirDefenseEditView: View {
         Form {
             Section("AAA & SAM") {
                 TextField("NAME", text: $system.name)
+                Picker("Type", selection: $system.typeRaw) {
+                    ForEach(AirDefenseType.allCases) { type in
+                        Text(type.rawValue).tag(type.rawValue)
+                    }
+                }
                 TextField("max effective range (NM)", value: $system.maxEffectiveRangeNM, format: .number)
                     .keyboardType(.decimalPad)
                 TextField("max alt (ft)", value: $system.maxAltitudeFt, format: .number)

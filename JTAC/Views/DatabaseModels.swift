@@ -42,9 +42,27 @@ enum AssetType: String, CaseIterable, Identifiable {
     var id: String { rawValue }
 }
 
+enum AirDefenseType: String, CaseIterable, Identifiable {
+    case lrads = "LRADS"
+    case mrads = "MRADS"
+    case manpads = "MANPADS"
+
+    var id: String { rawValue }
+}
+
+enum RedWeaponType: String, CaseIterable, Identifiable {
+    case bomb = "BOMB"
+    case missile = "MISSILE"
+    case gun = "GUN"
+    case rocket = "ROCKET"
+    
+    var id: String { rawValue }
+}
+
 @Model
 final class AirDefenseSystem {
     var name: String
+    var typeRaw: String
     var maxEffectiveRangeNM: Double
     var maxAltitudeFt: Int
     var guidance: String
@@ -52,22 +70,30 @@ final class AirDefenseSystem {
 
     init(
         name: String = "",
+        type: AirDefenseType = .lrads,
         maxEffectiveRangeNM: Double = 0,
         maxAltitudeFt: Int = 0,
         guidance: String = "",
         createdAt: Date = Date()
     ) {
         self.name = name
+        self.typeRaw = type.rawValue
         self.maxEffectiveRangeNM = maxEffectiveRangeNM
         self.maxAltitudeFt = maxAltitudeFt
         self.guidance = guidance
         self.createdAt = createdAt
+    }
+
+    var type: AirDefenseType {
+        get { AirDefenseType(rawValue: typeRaw) ?? .lrads }
+        set { typeRaw = newValue.rawValue }
     }
 }
 
 @Model
 final class RedWeapon {
     var weapon: String
+    var typeRaw: String
     var lethalRadiusFt: Int
     var fragRadiusFt: Int
     var dangerCloseFt: Int
@@ -76,6 +102,7 @@ final class RedWeapon {
 
     init(
         weapon: String = "",
+        type: RedWeaponType = .bomb,
         lethalRadiusFt: Int = 0,
         fragRadiusFt: Int = 0,
         dangerCloseFt: Int = 0,
@@ -83,10 +110,16 @@ final class RedWeapon {
         createdAt: Date = Date()
     ) {
         self.weapon = weapon
+        self.typeRaw = type.rawValue
         self.lethalRadiusFt = lethalRadiusFt
         self.fragRadiusFt = fragRadiusFt
         self.dangerCloseFt = dangerCloseFt
         self.minSafeTroopsOpenFt = minSafeTroopsOpenFt
         self.createdAt = createdAt
+    }
+    
+    var type: RedWeaponType {
+        get { RedWeaponType(rawValue: typeRaw) ?? .bomb }
+        set { typeRaw = newValue.rawValue }
     }
 }

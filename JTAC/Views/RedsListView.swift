@@ -10,49 +10,75 @@ struct RedsListView: View {
     @State private var editingWeapon: RedWeapon?
 
     var body: some View {
-        List {
-            if weapons.isEmpty {
-                ContentUnavailableView("No RED entries", systemImage: "scope", description: Text("Tap + to add a weapon and its radii."))
-                    .listRowBackground(Color.clear)
-            }
+        ZStack {
+            List {
+                if weapons.isEmpty {
+                    ContentUnavailableView("No REDs", systemImage: "exclamationmark.triangle", description: Text("Tap + to add a RED weapon."))
+                        .listRowBackground(Color.clear)
+                } else {
+                    ForEach(RedWeaponType.allCases) { weaponType in
+                        let filteredWeapons = weapons.filter { $0.type == weaponType }
+                        
+                        if !filteredWeapons.isEmpty {
+                            Section {
+                                ForEach(filteredWeapons) { weapon in
+                                    Button {
+                                        editingWeapon = weapon
+                                    } label: {
+                                        VStack(alignment: .leading, spacing: 6) {
+                                            Text(weapon.weapon.isEmpty ? "(Unnamed Weapon)" : weapon.weapon)
+                                                .font(.headline)
+                                                .foregroundColor(.white)
 
-            ForEach(weapons) { weapon in
-                Button {
-                    editingWeapon = weapon
-                } label: {
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text(weapon.weapon.isEmpty ? "(Unnamed Weapon)" : weapon.weapon)
-                            .font(.headline)
-                            .foregroundColor(.white)
-
-                        Text("Lethal \(weapon.lethalRadiusFt) • Frag \(weapon.fragRadiusFt) • DC \(weapon.dangerCloseFt) • Min Safe \(weapon.minSafeTroopsOpenFt) (ft)")
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-                            .lineLimit(2)
-                    }
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .listRowBackground(Color.black.opacity(0.25))
-                .swipeActions {
-                    Button(role: .destructive) {
-                        modelContext.delete(weapon)
-                    } label: {
-                        Label("Delete", systemImage: "trash")
+                                            Text("Lethal \(weapon.lethalRadiusFt) • Frag \(weapon.fragRadiusFt) • DC \(weapon.dangerCloseFt) • Min Safe \(weapon.minSafeTroopsOpenFt) (ft)")
+                                                .font(.subheadline)
+                                                .foregroundColor(.secondary)
+                                                .lineLimit(2)
+                                        }
+                                        .contentShape(Rectangle())
+                                    }
+                                    .buttonStyle(.plain)
+                                    .listRowBackground(Color.black.opacity(0.25))
+                                }
+                                .onDelete { indexSet in
+                                    for index in indexSet {
+                                        modelContext.delete(filteredWeapons[index])
+                                    }
+                                }
+                            } header: {
+                                Text(weaponType.rawValue)
+                                    .font(.headline)
+                                    .frame(maxWidth: .infinity, alignment: .center)
+                                    .padding(.vertical, 8)
+                                    .background(Color.gray.opacity(0.3))
+                                    .foregroundColor(.white)
+                                    .listRowInsets(EdgeInsets())
+                            }
+                        }
                     }
                 }
             }
-        }
-        .scrollContentBackground(.hidden)
-        .background(Color.black)
-        .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
+            .scrollContentBackground(.hidden)
+            .background(Color.black)
+
+            VStack {
+                Spacer()
                 Button {
                     showingAddSheet = true
                 } label: {
-                    Image(systemName: "plus")
-                        .foregroundColor(.white)
+                    HStack {
+                        Image(systemName: "plus")
+                        Text("Add WEAPON RED")
+                    }
+                    .font(.title2.weight(.bold))
+                    .padding(.vertical, 14)
+                    .padding(.horizontal, 24)
+                    .background(Color.blue)
+                    .foregroundColor(.white)
+                    .clipShape(Capsule())
+                    .shadow(radius: 4)
                 }
+                .padding(.bottom, 30)
             }
         }
         .sheet(isPresented: $showingAddSheet) {
@@ -82,6 +108,13 @@ private struct RedWeaponEditView: View {
         Form {
             Section("REDs") {
                 TextField("WEAPON", text: $weapon.weapon)
+                
+                Picker("TYPE", selection: $weapon.type) {
+                    ForEach(RedWeaponType.allCases) { weaponType in
+                        Text(weaponType.rawValue).tag(weaponType)
+                    }
+                }
+                
                 TextField("LETHAL RADIUS (ft)", value: $weapon.lethalRadiusFt, format: .number)
                     .keyboardType(.numberPad)
                 TextField("FRAG RADIUS (ft)", value: $weapon.fragRadiusFt, format: .number)
