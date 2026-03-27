@@ -124,13 +124,22 @@ private struct AssetCallsignEditView: View {
     var body: some View {
         Form {
             Section("Asset") {
-                TextField("Aircraft", text: $asset.aircraft)
-                TextField("AIR UNIT", value: $asset.airUnit, format: .number)
-                    .keyboardType(.numberPad)
+                VStack(alignment: .leading) {
+                    Text("Aircraft").font(.caption).foregroundColor(.secondary)
+                    TextField("Aircraft", text: $asset.aircraft)
+                }
+                VStack(alignment: .leading) {
+                    Text("AIR UNIT").font(.caption).foregroundColor(.secondary)
+                    TextField("AIR UNIT", value: $asset.airUnit, format: .number)
+                        .keyboardType(.numberPad)
+                }
 
-                Picker("Type", selection: $asset.typeRaw) {
-                    ForEach(AssetType.allCases) { type in
-                        Text(type.rawValue).tag(type.rawValue)
+                VStack(alignment: .leading) {
+                    Text("Type").font(.caption).foregroundColor(.secondary)
+                    Picker("Type", selection: $asset.typeRaw) {
+                        ForEach(AssetType.allCases) { type in
+                            Text(type.rawValue).tag(type.rawValue)
+                        }
                     }
                 }
             }

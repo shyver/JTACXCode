@@ -92,12 +92,24 @@ private struct AirDefenseEditView: View {
     var body: some View {
         Form {
             Section("AAA & SAM") {
-                TextField("NAME", text: $system.name)
-                TextField("max effective range (NM)", value: $system.maxEffectiveRangeNM, format: .number)
-                    .keyboardType(.decimalPad)
-                TextField("max alt (ft)", value: $system.maxAltitudeFt, format: .number)
-                    .keyboardType(.numberPad)
-                TextField("guidance", text: $system.guidance)
+                VStack(alignment: .leading) {
+                    Text("NAME").font(.caption).foregroundColor(.secondary)
+                    TextField("NAME", text: $system.name)
+                }
+                VStack(alignment: .leading) {
+                    Text("Max Effective Range (NM)").font(.caption).foregroundColor(.secondary)
+                    TextField("max effective range (NM)", value: $system.maxEffectiveRangeNM, format: .number)
+                        .keyboardType(.decimalPad)
+                }
+                VStack(alignment: .leading) {
+                    Text("Max Alt (ft)").font(.caption).foregroundColor(.secondary)
+                    TextField("max alt (ft)", value: $system.maxAltitudeFt, format: .number)
+                        .keyboardType(.numberPad)
+                }
+                VStack(alignment: .leading) {
+                    Text("Guidance").font(.caption).foregroundColor(.secondary)
+                    TextField("guidance", text: $system.guidance)
+                }
             }
         }
         .navigationTitle("AAA & SAM")

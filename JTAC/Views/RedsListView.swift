@@ -107,22 +107,40 @@ private struct RedWeaponEditView: View {
     var body: some View {
         Form {
             Section("REDs") {
-                TextField("WEAPON", text: $weapon.weapon)
+                VStack(alignment: .leading) {
+                    Text("WEAPON").font(.caption).foregroundColor(.secondary)
+                    TextField("WEAPON", text: $weapon.weapon)
+                }
                 
-                Picker("TYPE", selection: $weapon.type) {
-                    ForEach(RedWeaponType.allCases) { weaponType in
-                        Text(weaponType.rawValue).tag(weaponType)
+                VStack(alignment: .leading) {
+                    Text("TYPE").font(.caption).foregroundColor(.secondary)
+                    Picker("TYPE", selection: $weapon.type) {
+                        ForEach(RedWeaponType.allCases) { weaponType in
+                            Text(weaponType.rawValue).tag(weaponType)
+                        }
                     }
                 }
                 
-                TextField("LETHAL RADIUS (ft)", value: $weapon.lethalRadiusFt, format: .number)
-                    .keyboardType(.numberPad)
-                TextField("FRAG RADIUS (ft)", value: $weapon.fragRadiusFt, format: .number)
-                    .keyboardType(.numberPad)
-                TextField("DANGER CLOSE (ft)", value: $weapon.dangerCloseFt, format: .number)
-                    .keyboardType(.numberPad)
-                TextField("MIN SAFE (troops open) (ft)", value: $weapon.minSafeTroopsOpenFt, format: .number)
-                    .keyboardType(.numberPad)
+                VStack(alignment: .leading) {
+                    Text("LETHAL RADIUS (ft)").font(.caption).foregroundColor(.secondary)
+                    TextField("LETHAL RADIUS (ft)", value: $weapon.lethalRadiusFt, format: .number)
+                        .keyboardType(.numberPad)
+                }
+                VStack(alignment: .leading) {
+                    Text("FRAG RADIUS (ft)").font(.caption).foregroundColor(.secondary)
+                    TextField("FRAG RADIUS (ft)", value: $weapon.fragRadiusFt, format: .number)
+                        .keyboardType(.numberPad)
+                }
+                VStack(alignment: .leading) {
+                    Text("DANGER CLOSE (ft)").font(.caption).foregroundColor(.secondary)
+                    TextField("DANGER CLOSE (ft)", value: $weapon.dangerCloseFt, format: .number)
+                        .keyboardType(.numberPad)
+                }
+                VStack(alignment: .leading) {
+                    Text("MIN SAFE (troops open) (ft)").font(.caption).foregroundColor(.secondary)
+                    TextField("MIN SAFE (troops open) (ft)", value: $weapon.minSafeTroopsOpenFt, format: .number)
+                        .keyboardType(.numberPad)
+                }
             }
         }
         .navigationTitle("RED")
