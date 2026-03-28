@@ -152,3 +152,11 @@ struct NineLine: Codable {
     var egress: String?           // Line 8 – Egress
     var remarksLine: String?      // Line 9 – Remarks / restrictions
 }
+
+enum JTACPhase: String, CaseIterable {
+    case general   = "general"    // default / unknown — broadest coverage
+    case cas       = "cas"        // CAS check-in
+    case nineLine  = "nine_line"  // 9-line readout
+    case remarks   = "remarks"    // remarks & restrictions
+    case bda       = "bda"        // battle damage assessment
+}

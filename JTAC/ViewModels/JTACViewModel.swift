@@ -22,15 +22,22 @@ class JTACViewModel: ObservableObject {
     /// The report is copied **synchronously** after processing so the UI
     /// never sees an intermediate empty state.
     func reparse(fullText: String) {
+        print("[JTACViewModel] reparse called with fullText '\(fullText)'")
         let trimmed = fullText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return }
+        guard !trimmed.isEmpty else {
+            print("[JTACViewModel] reparse aborted because fullText is empty")
+            return
+        }
         runningTranscript = trimmed
+        print("[JTACViewModel] Resetting parser")
         parser.reset()
+        print("[JTACViewModel] Passing trimmed text to parser.process()")
         parser.process(segment: trimmed)
         // Snapshot the fully-populated report in one atomic write.
         // No Combine hop → the UI goes directly from old-report to new-report
         // with zero intermediate empty state.
         report = parser.report
+        print("[JTACViewModel] Report snapshot updated. Report isEmpty: \(report.isEmpty)")
     }
     
     func clearAll() {

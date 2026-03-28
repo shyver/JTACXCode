@@ -16,7 +16,7 @@ final class AudioRecordingManager: NSObject, ObservableObject {
     @Published var speechPermissionStatus: SFSpeechRecognizerAuthorizationStatus = .notDetermined
 
     /// Fired on the main thread with fully corrected text when a segment ends.
-    var onSegmentCompleted: ((String) -> Void)? {
+    var onSegmentCompleted: ((_ newSegment: String, _ fullText: String) -> Void)? {
         get { _manager.onSegmentCompleted }
         set { _manager.onSegmentCompleted = newValue }
     }
@@ -47,7 +47,7 @@ final class AudioRecordingManager: NSObject, ObservableObject {
     }
 
     static func quickNormalize(_ input: String) -> String {
-        SpeechCorrectionEngine.shared.quickCorrect(input)
+        return input // Bypassing custom formatting/correcting engines entirely
     }
 
     typealias RecordingError = SpeechManager.SpeechError

@@ -1,4 +1,4 @@
-import SwiftUI
+  import SwiftUI
 import Combine
 
 class MainViewModel: ObservableObject {
@@ -44,6 +44,7 @@ class MainViewModel: ObservableObject {
     @Published var shouldReturnToNewMission: Bool = false
     
     init() {
+        print("[MainViewModel] init called")
         // Mirror live partial text into the view
         audioManager.$transcribedText
             .sink { [weak self] text in
@@ -58,29 +59,18 @@ class MainViewModel: ObservableObject {
             }
             .store(in: &cancellables)
 
-        // onSegmentCompleted now delivers the FULL accumulated text of the
-        // current recording session on every silence commit.  We:
-        //  1. Extract only the NEW tail for the transcript history display.
-        //  2. Send the full text to JTACViewModel for a clean reset-and-reparse.
-        audioManager.onSegmentCompleted = { [weak self] fullText in
+        audioManager.onSegmentCompleted = { [weak self] segment, fullText in
             guard let self else { return }
 
-            // Compute the new portion for display history.
-            let displayDelta: String
-            if fullText.hasPrefix(self.lastReportedFullText),
-               !self.lastReportedFullText.isEmpty {
-                displayDelta = String(fullText.dropFirst(self.lastReportedFullText.count))
-                    .trimmingCharacters(in: .whitespacesAndNewlines)
-            } else {
-                displayDelta = fullText
-            }
-            if !displayDelta.isEmpty {
-                let entry = TranscriptEntry(text: displayDelta, timestamp: Date())
+            print("[MainViewModel] onSegmentCompleted received. segment: '\(segment)', fullText: '\(fullText)'")
+            if !segment.isEmpty {
+                let entry = TranscriptEntry(text: segment, timestamp: Date())
                 self.transcriptHistory.append(entry)
+                print("[MainViewModel] Appended to transcriptHistory. Count is now \(self.transcriptHistory.count)")
             }
-            self.lastReportedFullText = fullText
-
+            
             // Full re-parse — parser resets and processes everything.
+            print("[MainViewModel] Passing fullText to jtacViewModel.reparse")
             self.jtacViewModel.reparse(fullText: fullText)
         }
     }
@@ -116,14 +106,16 @@ class MainViewModel: ObservableObject {
     }
     
     private func startRecording() {
+        print("[MainViewModel] Starting recording via AudioManager")
         do {
             try audioManager.startRecording()
         } catch {
-            print("Failed to start recording: \(error.localizedDescription)")
+            print("[MainViewModel] Failed to start recording: \(error.localizedDescription)")
         }
     }
     
     private func stopRecording() {
+        print("[MainViewModel] Stopping recording via AudioManager")
         // AudioRecordingManager.stopRecording() flushes any partial segment
         // via onSegmentCompleted before tearing down, so no manual save needed here.
         audioManager.stopRecording()

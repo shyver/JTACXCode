@@ -44,11 +44,9 @@ final class SpeechManager: NSObject, ObservableObject {
 
     // MARK: - Callbacks
 
-    /// Fired on the main thread with the **full accumulated text** of the
-    /// current recording session whenever a silence commit or stop occurs.
-    /// Callers should treat each invocation as a complete snapshot — not
-    /// an incremental segment.  The parser should reset-and-reparse.
-    var onSegmentCompleted: ((String) -> Void)?
+    /// Fired on the main thread when a natural speech pause occurs.
+    /// Passes the newly completed segment for chat bubbles, and the full transcript for the parser.
+    var onSegmentCompleted: ((_ newSegment: String, _ fullText: String) -> Void)?
 
     /// Fired whenever low-confidence flags are found in a result.
     var onLowConfidenceDetected: (([( word: String, correction: String?, confidence: Float)]) -> Void)?
@@ -56,40 +54,22 @@ final class SpeechManager: NSObject, ObservableObject {
     // MARK: - Private
 
     private var audioEngine: AVAudioEngine?
-    private var recognitionRequest: SFSpeechAudioBufferRecognitionRequest?
     private var recognitionTask: SFSpeechRecognitionTask?
     private let speechRecognizer = SFSpeechRecognizer(locale: Locale(identifier: "en-US"))
 
-    private let corrector = SpeechCorrectionEngine.shared
-
-    /// Generation counter — prevents stale callbacks from cancelled tasks.
+    private var committedSegments: [String] = []
+    
+    // Generation counter to prevent old canceled tasks from triggering a restart loop.
     private var taskGeneration = 0
-
-    /// Silence debounce work item.
-    private var silenceWorkItem: DispatchWorkItem?
-
-    /// Text accumulated from previous task cycles within the current transmission.
-    /// Always kept in sync with transcribedText so nothing is ever invisible.
-    /// Only cleared by stopRecording — never by a task restart or silence commit.
-    private var displayPrefix = ""
-
-    /// Dynamic silence threshold — extends as the transmission grows longer.
-    /// Uses the total accumulated text (displayPrefix + current partial) so that
-    /// long 9-line briefs delivered across multiple task cycles are not cut off
-    /// prematurely between lines.
-    private var silenceThreshold: TimeInterval {
-        let totalText = (displayPrefix + " " + transcribedText)
-            .split(separator: " ")
-            .filter { !$0.isEmpty }
-        let wordCount = totalText.count
-        switch wordCount {
-        case 0..<8:  return 3.5   // short phrase — still absorbs a thinking pause
-        case 8..<20: return 5.0   // mid-length / entering 9-line groups
-        default:     return 6.0   // long 9-line / SITREP — don't cut between lines
-        }
-    }
-
-    // MARK: - Initialisation
+    private var silenceTimer: Timer?
+    
+    // Audio buffering layer to guarantee zero audio dropped when transitioning speech tasks
+    private let audioQueue = DispatchQueue(label: "com.jtac.audioQueue")
+    private var activeRequest: SFSpeechAudioBufferRecognitionRequest?
+    private var pendingBuffers: [AVAudioPCMBuffer] = []
+    
+    // Safety lock
+    private var isTeardownInProgress = false
 
     override init() {
         super.init()
@@ -142,11 +122,12 @@ final class SpeechManager: NSObject, ObservableObject {
             // (the operator is no longer transmitting).  Stay in "recording" intent
             // state so we can resume automatically.
             print("[SpeechManager] Audio interruption began")
-            silenceWorkItem?.cancel()
-            silenceWorkItem = nil
-            recognitionRequest?.endAudio()
+            audioQueue.async {
+                self.activeRequest?.endAudio()
+                self.activeRequest = nil
+                self.pendingBuffers.removeAll()
+            }
             recognitionTask?.cancel()
-            recognitionRequest = nil
             recognitionTask = nil
             audioEngine?.stop()
             // Do NOT removeTap — we will reuse the engine on resume.
@@ -160,17 +141,8 @@ final class SpeechManager: NSObject, ObservableObject {
                 do {
                     let session = AVAudioSession.sharedInstance()
                     try session.setActive(true, options: .notifyOthersOnDeactivation)
-                    // Reinstall the tap and restart the engine since it was stopped.
-                    self.audioEngine?.inputNode.removeTap(onBus: 0)
-                    let fmt = self.audioEngine?.inputNode.outputFormat(forBus: 0)
-                    if let fmt, fmt.sampleRate > 0 {
-                        self.audioEngine?.inputNode.installTap(
-                            onBus: 0, bufferSize: 1024, format: fmt) { [weak self] buf, _ in
-                            self?.recognitionRequest?.append(buf)
-                        }
-                    }
                     try self.audioEngine?.start()
-                    self.restartTaskInPlace()
+                    self.startNewRecognitionTask()
                 } catch {
                     self.errorMessage = "Could not resume after interruption: \(error.localizedDescription)"
                 }
@@ -195,81 +167,49 @@ final class SpeechManager: NSObject, ObservableObject {
     // MARK: - Language Model Preparation
 
     private func buildAllModels() {
-        guard #available(iOS 17, *) else { return }
-        Task {
-            await CustomLanguageModelBuilder.shared.prepareAll()
-            print("[SpeechManager] All phase models ready")
-        }
+        // Obsolete custom language model builder removed. Natively handles speech.
     }
 
     // MARK: - Phase Switching
 
     private func phaseDidChange() {
         guard isRecording else { return }
-        // Gracefully cycle the recognition task so it picks up the new model.
-        // The audio engine keeps running — no gap in audio capture.
-        print("[SpeechManager] Phase → \(currentPhase.rawValue), cycling task")
-        commitAndContinue()
+        print("[SpeechManager] Phase → \(currentPhase.rawValue), cleanly cycle task")
+        audioQueue.async {
+            print("[SpeechManager][audioQueue] Calling endAudio() for phase change")
+            self.activeRequest?.endAudio()
+            self.activeRequest = nil
+        }
     }
 
-    /// Restarts the recognition task without ending the current transmission.
-    /// displayPrefix absorbs whatever is on screen so it stays visible.
-    /// The silence timer is the ONLY thing that ends a transmission.
-    private func restartTaskInPlace() {
-        // Snapshot current display text into the prefix so the operator
-        // never sees anything disappear between task cycles.
-        let current = transcribedText.trimmingCharacters(in: .whitespaces)
-        print("[SpeechManager] restartTaskInPlace  transcribed=(\(current.prefix(60)))  prefix=(\(displayPrefix.prefix(40)))")
-        if !current.isEmpty {
-            displayPrefix = current
-        }
-
-        recognitionTask?.cancel()
-        recognitionRequest?.endAudio()
-        recognitionTask = nil
-        recognitionRequest = nil
-        startNewRecognitionTask()
-    }
-
-    /// Commits the **full accumulated text** to the parser and restarts the
-    /// recognition task **without clearing the display**.  The operator always
-    /// sees all text from this recording session.
-    ///
-    /// The callback receives the complete `transcribedText` snapshot each time.
-    /// The receiving parser is expected to reset-and-reparse from scratch, which
-    /// eliminates every possible incremental-dedup edge case.
-    private func commitAndContinue() {
-        silenceWorkItem?.cancel()
-        silenceWorkItem = nil
-
-        let fullText = transcribedText.trimmingCharacters(in: .whitespaces)
-        print("[SpeechManager] commitAndContinue  fullText=(\(fullText.prefix(60)))  len=\(fullText.count)")
-        guard !fullText.isEmpty else {
-            restartTaskInPlace()
-            return
-        }
-
-        // Always send the full accumulated text.
-        onSegmentCompleted?(fullText)
-
-        // Restart the recognition task but keep displayPrefix / transcribedText
-        // intact so the operator never sees text disappear.
-        restartTaskInPlace()
+    /// Helper to get the total text
+    private func getFullText() -> String {
+        return (committedSegments + [transcribedText])
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+            .joined(separator: " ")
     }
 
     // MARK: - Recording
 
     func startRecording() throws {
+        print("[SpeechManager] startRecording called")
         #if targetEnvironment(simulator)
         isRecording = true
         simulateSegments()
         return
         #endif
 
+        audioQueue.sync {
+            activeRequest = nil
+            pendingBuffers.removeAll()
+        }
+
         recognitionTask?.cancel()
         recognitionTask = nil
-        displayPrefix = ""        // fresh recording session
-
+        transcribedText = ""
+        committedSegments = []
+        
         let session = AVAudioSession.sharedInstance()
         try session.setCategory(.record, mode: .measurement, options: .duckOthers)
         // Advisory 16 kHz mono request — matches Speech framework's internal format.
@@ -286,38 +226,56 @@ final class SpeechManager: NSObject, ObservableObject {
             throw SpeechError.audioEngineFailed
         }
 
-        inputNode.installTap(onBus: 0, bufferSize: 1024, format: fmt) { [weak self] buffer, _ in
-            self?.recognitionRequest?.append(buffer)
+        inputNode.installTap(onBus: 0, bufferSize: 1024, format: fmt) { [weak self] buffer, time in
+            guard let self = self else { return }
+            self.audioQueue.async {
+                if let req = self.activeRequest {
+                    // print("[SpeechManager] Audio tape tick -> appending to ACTIVE req")
+                    req.append(buffer)
+                } else {
+                    // print("[SpeechManager] Audio tape tick -> appending to PENDING buffers")
+                    self.pendingBuffers.append(buffer)
+                }
+            }
         }
 
         engine.prepare()
         try engine.start()
 
         isRecording = true
+        print("[SpeechManager] Audio engine started, calling startNewRecognitionTask")
         startNewRecognitionTask()
     }
 
     func stopRecording() {
+        print("[SpeechManager] stopRecording called")
         #if targetEnvironment(simulator)
         isRecording = false
         return
         #endif
 
         isRecording = false
-        silenceWorkItem?.cancel()
-        silenceWorkItem = nil
+        isTeardownInProgress = true
+        silenceTimer?.invalidate()
+        silenceTimer = nil
 
-        // Send the full accumulated text for a final re-parse, then tear down.
-        let fullText = transcribedText.trimmingCharacters(in: .whitespaces)
-        if !fullText.isEmpty {
-            onSegmentCompleted?(fullText)
+        audioQueue.sync {
+            print("[SpeechManager][audioQueue] stopRecording sync block - ending audio and clearing pendings")
+            activeRequest?.endAudio()
+            activeRequest = nil
+            pendingBuffers.removeAll()
+        }
+
+        // Send the final segment right away on manual stop
+        let segment = transcribedText.trimmingCharacters(in: .whitespaces)
+        print("[SpeechManager] stopRecording trimming final segment: '\(segment)'")
+        if !segment.isEmpty {
+            committedSegments.append(segment)
+            onSegmentCompleted?(segment, getFullText())
         }
         transcribedText = ""
-        displayPrefix = ""
 
-        recognitionRequest?.endAudio()
         recognitionTask?.cancel()
-        recognitionRequest = nil
         recognitionTask = nil
 
         audioEngine?.stop()
@@ -328,130 +286,137 @@ final class SpeechManager: NSObject, ObservableObject {
     // MARK: - Recognition Task
 
     private func startNewRecognitionTask() {
-        guard isRecording else { return }
-
-        silenceWorkItem?.cancel()
-        silenceWorkItem = nil
+        guard isRecording, !isTeardownInProgress else { 
+            print("[SpeechManager] startNewRecognitionTask aborted. isRecording: \(isRecording), isTeardownInProgress: \(isTeardownInProgress)")
+            return 
+        }
+        
+        print("[SpeechManager] Creating SFSpeechRecognitionTask for generation \(taskGeneration + 1)")
+        
         taskGeneration += 1
-        let myGen = taskGeneration
+        let currentGeneration = taskGeneration
 
-        // Build request
         let request = SFSpeechAudioBufferRecognitionRequest()
         request.shouldReportPartialResults = true
         request.addsPunctuation = true
         request.taskHint = .dictation
         request.contextualStrings = SpeechManager.contextualStrings
 
-        // Apply per-phase language model (iOS 17+)
-        if #available(iOS 17, *) {
-            let phase = currentPhase
-            Task {
-                let cfg = await CustomLanguageModelBuilder.shared.configuration(for: phase)
-                await MainActor.run {
-                    guard self.taskGeneration == myGen else { return }
-                    if let cfg = cfg {
-                        request.customizedLanguageModel = cfg
-                    }
-                }
-            }
-        }
-
         // Force on-device — app must function fully offline
         if speechRecognizer?.supportsOnDeviceRecognition == true {
             request.requiresOnDeviceRecognition = true
         }
 
-        recognitionRequest = request
-
         recognitionTask = speechRecognizer?.recognitionTask(with: request) { [weak self] result, error in
-            guard let self, self.taskGeneration == myGen else { return }
+            guard let self = self else { return }
+            
+            // Ignore results from old tasks
+            guard self.taskGeneration == currentGeneration else { 
+                print("[SpeechManager] Warning: Ignoring result for old generation \(currentGeneration). Current is \(self.taskGeneration)")
+                return 
+            }
 
             DispatchQueue.main.async {
-                guard self.taskGeneration == myGen else { return }
+                guard self.taskGeneration == currentGeneration else { return }
+                
+                if let result = result {
+                    let rawText = result.bestTranscription.formattedString
+                    let textLength = rawText.count
+                    print("[SpeechManager] Gen \(currentGeneration) partial result. length=\(textLength), isFinal=\(result.isFinal), text: '\(rawText)'")
+                    
+                    let newText = rawText.trimmingCharacters(in: .whitespaces)
 
-                if let result {
-                    let corrected = self.corrector.correct(result)
-
-                    if result.isFinal {
-                        // ── Involuntary task end (iOS time/noise limit) ────────
-                        // iOS fires isFinal on every natural pause, often within
-                        // 1–2 seconds of silence.  This is the PRIMARY commit
-                        // path — NOT the silence timer (which isFinal pre-empts
-                        // by cancelling it via the task restart).
-                        //
-                        // Use whichever text is longer — iOS sometimes shortens
-                        // on its final pass.
-                        let best = corrected.text.count >= self.transcribedText.count
-                            ? corrected.text : self.transcribedText
-                        let trimmed = best.trimmingCharacters(in: .whitespaces)
-                        if !trimmed.isEmpty {
-                            self.transcribedText = trimmed
-                        }
-                        print("[SpeechManager] isFinal → commitAndContinue  text=(\(self.transcribedText.prefix(80)))")
-
-                        if !corrected.lowConfidenceFlags.isEmpty {
-                            self.onLowConfidenceDetected?(corrected.lowConfidenceFlags)
-                        }
-                        if corrected.hasCriticalLowConfidence {
-                            self.criticalConfidenceAlert = true
-                        }
-
-                        if self.isRecording {
-                            // Commit text to parser AND restart task.
-                            // commitAndContinue sends the full accumulated text
-                            // then calls restartTaskInPlace (preserves display).
-                            self.commitAndContinue()
-                        }
-
+                    // APPLE BUG WORKAROUND 1:
+                    // SFSpeechRecognizer sometimes yields a completely empty string uniquely on the
+                    // very final `isFinal=true` tick after `endAudio()` is called on-device.
+                    // We must not let it overwrite the text we just spent the last 10 seconds building!
+                    if newText.isEmpty && !self.transcribedText.isEmpty {
+                        print("[SpeechManager] ⚠️ Apple returned empty text! Preserving previously built text: '\(self.transcribedText)'")
                     } else {
-                        // ── Normal partial result ──────────────────────────────
-                        // Prepend the accumulated prefix from previous task cycles
-                        // so the display always shows the full transmission so far.
-                        let newText = corrected.text.trimmingCharacters(in: .whitespaces)
-                        if newText.isEmpty {
-                            // Empty partial — iOS is reconsidering. Keep showing
-                            // whatever we have; do not blank the screen.
-                        } else if self.displayPrefix.isEmpty {
-                            self.transcribedText = newText
-                        } else {
-                            self.transcribedText = self.displayPrefix + " " + newText
+                        // APPLE BUG WORKAROUND 2:
+                        // SFSpeechRecognizer has a rolling buffer limit and will silently delete the front half 
+                        // of your sentence if you speak continuously.
+                        // If the incoming text length violently shrinks by more than 50% on a long string, 
+                        // we MUST salvage what we had by instantly committing it to chat history 
+                        // before accepting the new short text.
+                        let oldLength = self.transcribedText.count
+                        let newLength = newText.count
+                        if oldLength > 20 && newLength < (oldLength / 2) {
+                            print("[SpeechManager] ⚠️ Apple buffer rolling detected! String cut from \(oldLength) to \(newLength). Pre-committing salvage: '\(self.transcribedText)'")
+                            self.committedSegments.append(self.transcribedText)
+                            self.onSegmentCompleted?(self.transcribedText, self.getFullText())
                         }
-
-                        if !corrected.lowConfidenceFlags.isEmpty {
-                            self.onLowConfidenceDetected?(corrected.lowConfidenceFlags)
-                        }
-                        if corrected.hasCriticalLowConfidence {
-                            self.criticalConfidenceAlert = true
-                        }
-                        self.rescheduleSilenceCutoff()
+                        
+                        self.transcribedText = newText
                     }
 
-                } else if self.isRecording {
-                    // ── Task died (error OR iOS nil/nil cancellation) ──────────
-                    // Commit whatever we have so the parser stays current, then
-                    // restart the task transparently.
-                    print("[SpeechManager] task died → commitAndContinue  text=(\(self.transcribedText.prefix(60)))")
-                    self.commitAndContinue()
+                    // 1.2-second silence cleanly cuts the request to force a final commit natively
+                    // (Reduced from 2.0s to avoid aggressive buffer buildups)
+                    if !self.transcribedText.isEmpty && !result.isFinal {
+                        self.silenceTimer?.invalidate()
+                        self.silenceTimer = Timer.scheduledTimer(withTimeInterval: 1.2, repeats: false) { [weak self] _ in
+                            guard let self = self, self.isRecording, !self.isTeardownInProgress else { return }
+                            print("[SpeechManager] 1.2-sec silence hit for Gen \(currentGeneration)! Signaling endAudio() to trigger commit gracefully.")
+                            self.audioQueue.async {
+                                print("[SpeechManager][audioQueue] Executing endAudio() from silence timer")
+                                self.activeRequest?.endAudio()
+                                self.activeRequest = nil
+                            }
+                        }
+                    }
+
+                    if result.isFinal {
+                        print("[SpeechManager] isFinal == true natively for Gen \(currentGeneration). Saving segment -> '\(self.transcribedText)'")
+                        let segment = self.transcribedText.trimmingCharacters(in: .whitespaces)
+                        if !segment.isEmpty {
+                            self.committedSegments.append(segment)
+                            let fullText = self.getFullText()
+                            print("[SpeechManager] Firing onSegmentCompleted. New Segment: '\(segment)', Full History: '\(fullText)'")
+                            self.onSegmentCompleted?(segment, fullText)
+                        } else {
+                            print("[SpeechManager] isFinal was true but segment was empty.")
+                        }
+                        self.transcribedText = ""
+                        self.silenceTimer?.invalidate()
+                        
+                        if self.isRecording && !self.isTeardownInProgress {
+                            print("[SpeechManager] isRecording still true, launching new task")
+                            self.startNewRecognitionTask()
+                        }
+                    }
+                } else if let error = error {
+                    // Code 216 means "No speech detected" (often triggers on endAudio with empty buffer)
+                    let nsError = error as NSError
+                    print("[SpeechManager] Task error on gen \(currentGeneration). Code: \(nsError.code), Desc: \(error.localizedDescription)")
+                    
+                    let curText = self.transcribedText.trimmingCharacters(in: .whitespaces)
+                    if !curText.isEmpty {
+                        print("[SpeechManager] Salvaging text on error: '\(curText)'")
+                        self.committedSegments.append(curText)
+                        self.onSegmentCompleted?(curText, self.getFullText())
+                    }
+                    self.transcribedText = ""
+                    self.silenceTimer?.invalidate()
+
+                    if self.isRecording && !self.isTeardownInProgress {
+                        print("[SpeechManager] Relaunching task after error")
+                        self.startNewRecognitionTask()
+                    }
                 }
             }
         }
-    }
-
-    // MARK: - Silence Detection
-
-    private func rescheduleSilenceCutoff() {
-        guard isRecording else { return }
-        silenceWorkItem?.cancel()
-
-        let item = DispatchWorkItem { [weak self] in
-            guard let self, self.isRecording else { return }
-            // Commit new text to the parser but keep the display intact.
-            // The operator should never see text vanish mid-recording.
-            self.commitAndContinue()
+        
+        // Let the background audio queue take ownership of the request and flush anything generated during startup
+        audioQueue.async {
+            print("[SpeechManager][audioQueue] Attaching active request to Gen \(currentGeneration)")
+            self.activeRequest = request
+            let pendingCount = self.pendingBuffers.count
+            for buf in self.pendingBuffers {
+                request.append(buf)
+            }
+            self.pendingBuffers.removeAll()
+            print("[SpeechManager][audioQueue] Flushed \(pendingCount) pending buffers into request.")
         }
-
-        silenceWorkItem = item
-        DispatchQueue.main.asyncAfter(deadline: .now() + silenceThreshold, execute: item)
     }
 
     // MARK: - Contextual Strings (base list, supplements the LM)
@@ -567,7 +532,8 @@ final class SpeechManager: NSObject, ObservableObject {
                 self.transcribedText = line
                 DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) { [weak self] in
                     guard let self, self.isRecording else { return }
-                    self.onSegmentCompleted?(line)
+                    self.committedSegments.append(line)
+                    self.onSegmentCompleted?(line, self.getFullText())
                     self.transcribedText = ""
                 }
             }

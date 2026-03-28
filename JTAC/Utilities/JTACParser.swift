@@ -29,6 +29,7 @@ class JTACParser: ObservableObject {
 
     /// Feed each completed transcript segment here.
     func process(segment: String) {
+        print("[JTACParser] process() called with segment: '\(segment)'")
         guard !segment.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
 
         // Normalize first — fix common STT mis-recognitions before parsing.
