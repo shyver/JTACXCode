@@ -39,7 +39,7 @@ struct HomeView: View {
             }
             
             Button(action: {
-                // Action for Archive
+                currentView = .archive
             }) {
                 Text("Archive")
                     .frame(minWidth: 0, maxWidth: .infinity,
@@ -51,7 +51,7 @@ struct HomeView: View {
             }
             
             Button(action: {
-                // Action for Settings
+                currentView = .settings
             }) {
                 Text("Settings")
                     .frame(minWidth: 0, maxWidth: .infinity, minHeight: 50)

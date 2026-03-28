@@ -7,7 +7,7 @@ struct MilitaryRadioApp: App {
 
     init() {
         do {
-            let modelContainer = try ModelContainer(for: AssetCallsign.self, AirDefenseSystem.self, RedWeapon.self)
+            let modelContainer = try ModelContainer(for: AssetCallsign.self, AirDefenseSystem.self, RedWeapon.self, ArchivedMission.self)
             self.container = modelContainer
             
             // Seed initial data if the database is empty
@@ -29,7 +29,7 @@ struct MilitaryRadioApp: App {
 }
 
 @MainActor
-private func seedData(context: ModelContext) {
+func seedData(context: ModelContext) {
     let airDefenseDescriptor = FetchDescriptor<AirDefenseSystem>()
     let existingAirDefense = (try? context.fetch(airDefenseDescriptor)) ?? []
     
@@ -198,6 +198,12 @@ struct ContentView: View {
                         .transition(.move(edge: .trailing).combined(with: .opacity))
                 case .database:
                     DatabaseRootView(currentView: $currentScreen)
+                        .transition(.move(edge: .trailing).combined(with: .opacity))
+                case .settings:
+                    SettingsView(currentView: $currentScreen)
+                        .transition(.move(edge: .trailing).combined(with: .opacity))
+                case .archive:
+                    ArchiveView(currentView: $currentScreen)
                         .transition(.move(edge: .trailing).combined(with: .opacity))
                 }
             }

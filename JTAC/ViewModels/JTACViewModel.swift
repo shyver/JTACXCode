@@ -32,6 +32,12 @@ class JTACViewModel: ObservableObject {
         // with zero intermediate empty state.
         report = parser.report
     }
+    
+    func clearAll() {
+        runningTranscript = ""
+        parser.reset()
+        report = JTACReport()
+    }
 
     /// Legacy incremental API — still used by manual injection if needed.
     func process(segment: String) {
@@ -118,16 +124,18 @@ class JTACViewModel: ObservableObject {
             return lines.joined(separator: "\n")
 
         case "Remarks":
-            return report.remarks ?? ""
+            return "" // Handled by RemarksDetailView
 
         case "Restrictions":
-            return report.restrictions ?? ""
+            return "" // Handled by RestrictionsDetailView
 
         case "BDA":
-            return report.bda ?? ""
+            return "" // Handled by BDADetailView
 
         case "GamePlan":
-            return report.gamePlan ?? ""
+            // GamePlan is now handled by GamePlanDetailView, so string content shouldn't be invoked directly.
+            // Returning empty or a simple summary if needed.
+            return ""
 
         default:
             return ""

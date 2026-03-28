@@ -44,8 +44,9 @@ struct NineLineView: View {
                             .padding(.top, 20)
 
                         ScrollView {
+                            // Determine content based on tab
                             if selectedTab.id == "authentication" {
-                                let auth = viewModel.missionData?.authentication.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+                                let auth = viewModel.missionData?.authentication ?? ""
                                 if auth.isEmpty {
                                     Text("No authentication set.")
                                         .font(.system(size: 18))
@@ -69,6 +70,20 @@ struct NineLineView: View {
                                         .frame(maxWidth: .infinity, alignment: .leading)
                                         .padding(20)
                                 }
+                            } else if selectedTab.id == "nineLineBrief" {
+                                NineLineBriefDetailView(nineLine: jtacViewModel.report.nineLine)
+                            } else if selectedTab.id == "safetyOfFlight" {
+                                SafetyOfFlightDetailView(safety: jtacViewModel.report.safetyOfFlight)
+                            } else if selectedTab.id == "situationUpdate" {
+                                SituationUpdateDetailView(sitrep: jtacViewModel.report.situationUpdate)
+                            } else if selectedTab.id == "gamePlan" {
+                                GamePlanDetailView(gamePlan: jtacViewModel.report.gamePlan)
+                            } else if selectedTab.id == "remarks" {
+                                RemarksDetailView(remarks: jtacViewModel.report.remarks)
+                            } else if selectedTab.id == "restrictions" {
+                                RestrictionsDetailView(restrictions: jtacViewModel.report.restrictions)
+                            } else if selectedTab.id == "bda" {
+                                BDADetailView(bda: jtacViewModel.report.bda)
                             } else {
                                 let text = jtacViewModel.content(for: selectedTab.jtacCategoryKey)
                                 if text.isEmpty {
@@ -157,6 +172,138 @@ struct CASCheckinDetailView: View {
 
             // Editable: ABORT CODE
             EditableDetailRow(label: "ABORT CODE", text: abortCodeBinding, isCompact: isCompact)
+        }
+        .padding(isCompact ? 8 : 12)
+    }
+}
+
+struct NineLineBriefDetailView: View {
+    let nineLine: NineLine?
+    var isCompact: Bool = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: isCompact ? 6 : 8) {
+            DetailRow(label: "1. IP / BP", value: nineLine?.ip ?? "", isCompact: isCompact)
+            DetailRow(label: "2. HDG", value: nineLine?.heading ?? "", isCompact: isCompact)
+            DetailRow(label: "3. DISTANCE", value: nineLine?.distance ?? "", isCompact: isCompact)
+            DetailRow(label: "4. ELEVATION", value: nineLine?.targetElevation ?? "", isCompact: isCompact)
+            DetailRow(label: "5. TARGET", value: nineLine?.targetDescription ?? "", isCompact: isCompact)
+            DetailRow(label: "6. LOCATION", value: nineLine?.targetMark ?? "", isCompact: isCompact)
+            DetailRow(label: "7. MARK", value: nineLine?.friendlies ?? "", isCompact: isCompact)
+            DetailRow(label: "8. FRIENDLIES", value: nineLine?.egress ?? "", isCompact: isCompact)
+            DetailRow(label: "9. EGRESS", value: nineLine?.remarksLine ?? "", isCompact: isCompact)
+        }
+        .padding(isCompact ? 8 : 12)
+    }
+}
+
+struct SafetyOfFlightDetailView: View {
+    let safety: SafetyOfFlight?
+    var isCompact: Bool = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: isCompact ? 6 : 8) {
+            DetailRow(label: "1. THREATS", value: safety?.threats ?? "", isCompact: isCompact)
+            DetailRow(label: "2. FRIENDLY ASSETS", value: safety?.friendlyAssets ?? "", isCompact: isCompact)
+            DetailRow(label: "3. TERRAINS AND OBSTACLES", value: safety?.terrainsObstacles ?? "", isCompact: isCompact)
+            DetailRow(label: "4. EMERGENCY CONSIDERATIONS", value: safety?.emergencyConsiderations ?? "", isCompact: isCompact)
+            DetailRow(label: "5. E POINT", value: safety?.ePoint ?? "", isCompact: isCompact)
+        }
+        .padding(isCompact ? 8 : 12)
+    }
+}
+
+struct SituationUpdateDetailView: View {
+    let sitrep: SituationUpdate?
+    var isCompact: Bool = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: isCompact ? 6 : 8) {
+            DetailRow(label: "THREATS", value: sitrep?.threats ?? "", isCompact: isCompact)
+            DetailRow(label: "TARGETS/ENEMY", value: sitrep?.targets ?? "", isCompact: isCompact)
+            DetailRow(label: "FRIENDLIES", value: sitrep?.friendlies ?? "", isCompact: isCompact)
+            DetailRow(label: "ARTY", value: sitrep?.arty ?? "", isCompact: isCompact)
+            DetailRow(label: "CLEARANCE", value: sitrep?.clearance ?? "", isCompact: isCompact)
+            DetailRow(label: "ORDNANCE", value: sitrep?.ordnance ?? "", isCompact: isCompact)
+            DetailRow(label: "REMARKS/RESTRICTIONS", value: sitrep?.remarks ?? "", isCompact: isCompact)
+        }
+        .padding(isCompact ? 8 : 12)
+    }
+}
+
+struct GamePlanDetailView: View {
+    let gamePlan: GamePlan?
+    var isCompact: Bool = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: isCompact ? 6 : 8) {
+            DetailRow(label: "TYPE OF CONTROL", value: gamePlan?.typeOfControl ?? "", isCompact: isCompact)
+            DetailRow(label: "METHOD OF ATTACK", value: gamePlan?.methodOfAttack ?? "", isCompact: isCompact)
+            DetailRow(label: "GC INTENT", value: gamePlan?.gcIntent ?? "", isCompact: isCompact)
+            DetailRow(label: "CDE", value: gamePlan?.cde ?? "", isCompact: isCompact)
+            DetailRow(label: "ORDNANCE", value: gamePlan?.ordnance ?? "", isCompact: isCompact)
+            DetailRow(label: "DESIRED EFFECT", value: gamePlan?.desiredEffect ?? "", isCompact: isCompact)
+        }
+        .padding(isCompact ? 8 : 12)
+    }
+}
+
+struct RemarksDetailView: View {
+    let remarks: Remarks?
+    var isCompact: Bool = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: isCompact ? 6 : 8) {
+            DetailRow(label: "LASER TGT LINE", value: remarks?.laserTgtLine ?? "", isCompact: isCompact)
+            DetailRow(label: "PTL", value: remarks?.ptl ?? "", isCompact: isCompact)
+            DetailRow(label: "GUN-TGT-LINE(MAX ORD)", value: remarks?.gunTgtLine ?? "", isCompact: isCompact)
+            DetailRow(label: "MAX ORD", value: remarks?.maxOrd ?? "", isCompact: isCompact)
+            
+            if let text = remarks?.text, !text.isEmpty {
+                DetailRow(label: "OTHER", value: text, isCompact: isCompact)
+            }
+        }
+        .padding(isCompact ? 8 : 12)
+    }
+}
+
+struct RestrictionsDetailView: View {
+    let restrictions: Restrictions?
+    var isCompact: Bool = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: isCompact ? 6 : 8) {
+            DetailRow(label: "DANGER CLOSE", value: restrictions?.dangerClose ?? "", isCompact: isCompact)
+            DetailRow(label: "FAH", value: restrictions?.fah ?? "", isCompact: isCompact)
+            DetailRow(label: "ACA’s", value: restrictions?.acas ?? "", isCompact: isCompact)
+            DetailRow(label: "TOT/TTT", value: restrictions?.totTtt ?? "", isCompact: isCompact)
+            DetailRow(label: "Lat/Alt", value: restrictions?.latAlt ?? "", isCompact: isCompact)
+            DetailRow(label: "POST LAUNCH ABORT", value: restrictions?.postLaunchAbort ?? "", isCompact: isCompact)
+            
+            if let text = restrictions?.text, !text.isEmpty {
+                DetailRow(label: "OTHER", value: text, isCompact: isCompact)
+            }
+        }
+        .padding(isCompact ? 8 : 12)
+    }
+}
+
+struct BDADetailView: View {
+    let bda: BDAData?
+    var isCompact: Bool = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: isCompact ? 6 : 8) {
+            DetailRow(label: "STATUS", value: bda?.status ?? "", isCompact: isCompact)
+            DetailRow(label: "SIZE", value: bda?.size ?? "", isCompact: isCompact)
+            DetailRow(label: "ACTIVITY", value: bda?.activity ?? "", isCompact: isCompact)
+            DetailRow(label: "LOCATION", value: bda?.location ?? "", isCompact: isCompact)
+            DetailRow(label: "TIME", value: bda?.time ?? "", isCompact: isCompact)
+            DetailRow(label: "REMARKS", value: bda?.remarks ?? "", isCompact: isCompact)
+            
+            if let text = bda?.text, !text.isEmpty {
+                DetailRow(label: "OTHER", value: text, isCompact: isCompact)
+            }
         }
         .padding(isCompact ? 8 : 12)
     }

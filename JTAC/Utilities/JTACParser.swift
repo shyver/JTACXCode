@@ -430,6 +430,177 @@ class JTACParser: ObservableObject {
 
     // MARK: - Safety of Flight Field Extraction
 
+    /// Parses a free-text Remarks segment and populates Remarks fields.
+    private func extractRemarksFields(from segment: String) {
+        if report.remarks == nil { report.remarks = Remarks() }
+        let lower = segment.lowercased()
+
+        // ── LASER TGT LINE ───────────────────────────────────────────────
+        if report.remarks?.laserTgtLine == nil {
+            let patterns: [String] = [
+                #"(?i)\b(?:laser\s+tgt\s+line|laser\s+target\s+line|ltl)\s*[:\-]?\s*(.+?)(?:\.|,\s*(?:ptl|gun|max|remarks)|$)"#,
+            ]
+            for pat in patterns {
+                if let val = extractCapture(pat, in: segment, group: 1),
+                   !val.trimmingCharacters(in: .whitespaces).isEmpty {
+                    report.remarks?.laserTgtLine = val.trimmingCharacters(in: .whitespacesAndNewlines)
+                    break
+                }
+            }
+        }
+
+        // ── PTL ────────────────────────────────────────────────────────
+        if report.remarks?.ptl == nil {
+            let patterns: [String] = [
+                #"(?i)\bptl\s*[:\-]?\s*(.+?)(?:\.|,\s*(?:laser|ltl|gun|max|remarks)|$)"#,
+            ]
+            for pat in patterns {
+                if let val = extractCapture(pat, in: segment, group: 1),
+                   !val.trimmingCharacters(in: .whitespaces).isEmpty {
+                    report.remarks?.ptl = val.trimmingCharacters(in: .whitespacesAndNewlines)
+                    break
+                }
+            }
+        }
+
+        // ── GUN-TGT-LINE(MAX ORD) / GTL ────────────────────────────────
+        if report.remarks?.gunTgtLine == nil {
+            let patterns: [String] = [
+                #"(?i)\b(?:gun\s*tgt\s*line|gun\s*target\s*line|gtl)\s*[:\-]?\s*(.+?)(?:\.|,\s*(?:laser|ltl|ptl|max|remarks)|$)"#,
+            ]
+            for pat in patterns {
+                if let val = extractCapture(pat, in: segment, group: 1),
+                   !val.trimmingCharacters(in: .whitespaces).isEmpty {
+                    report.remarks?.gunTgtLine = val.trimmingCharacters(in: .whitespacesAndNewlines)
+                    break
+                }
+            }
+        }
+
+        // ── MAX ORD ────────────────────────────────────────────────────
+        if report.remarks?.maxOrd == nil {
+            let patterns: [String] = [
+                #"(?i)\bmax\s*ord(?:inance)?\s*[:\-]?\s*(.+?)(?:\.|,\s*(?:laser|ltl|ptl|gun|remarks)|$)"#,
+            ]
+            for pat in patterns {
+                if let val = extractCapture(pat, in: segment, group: 1),
+                   !val.trimmingCharacters(in: .whitespaces).isEmpty {
+                    report.remarks?.maxOrd = val.trimmingCharacters(in: .whitespacesAndNewlines)
+                    break
+                }
+            }
+        }
+
+        // Fallback or remaining generic text collection could happen here,
+        // but typically all text that doesn't match above is just accumulated.
+        // Let's simply capture the entire segment as fallback text if none of the above are matched cleanly,
+        // or just append everything. Since it's unstructured, we can just append it all to text.
+        // Actually, we'll append to `text` for anything we might miss, but since it's just a general log:
+        if !segment.isEmpty {
+            report.remarks?.text = join(report.remarks?.text, segment)
+        }
+    }
+
+    /// Parses a free-text Restrictions segment and populates Restrictions fields.
+    private func extractRestrictionsFields(from segment: String) {
+        if report.restrictions == nil { report.restrictions = Restrictions() }
+        let lower = segment.lowercased()
+
+        // ── DANGER CLOSE ──────────────────────────────────────────────────
+        if report.restrictions?.dangerClose == nil {
+            // Can be a standalone "danger close" or "danger close [distance]".
+            if lower.contains("danger close") {
+                if let val = extractCapture(#"(?i)\bdanger\s+close\s*(?:with)?in\s*(\d+\s*(?:m|meters)?)\b"#, in: segment, group: 1) {
+                    report.restrictions?.dangerClose = val
+                } else {
+                    report.restrictions?.dangerClose = "Yes" // Explicitly mentioned
+                }
+            }
+        }
+
+        // ── FAH (Final Attack Heading) ────────────────────────────────────
+        if report.restrictions?.fah == nil {
+            let fahPatterns = [
+                #"(?i)\b(?:final\s+attack\s+heading|fah)\s*[:\-]?\s*(.+?)(?:\.|,\s*(?:acas?|tot|ttt|danger|lat|post|remarks)|$)"#
+            ]
+            for pat in fahPatterns {
+                if let val = extractCapture(pat, in: segment, group: 1), !val.trimmingCharacters(in: .whitespaces).isEmpty {
+                    report.restrictions?.fah = val.trimmingCharacters(in: .whitespacesAndNewlines)
+                    break
+                }
+            }
+        }
+
+        // ── ACA's (Airspace Coordination Areas) ───────────────────────────
+        if report.restrictions?.acas == nil {
+            let acaPatterns = [
+                #"(?i)\b(?:acas?|airspace\s+coordination\s+area)\s*[:\-]?\s*(.+?)(?:\.|,\s*(?:fah|tot|ttt|danger|lat|post|remarks)|$)"#
+            ]
+            for pat in acaPatterns {
+                if let val = extractCapture(pat, in: segment, group: 1), !val.trimmingCharacters(in: .whitespaces).isEmpty {
+                    report.restrictions?.acas = val.trimmingCharacters(in: .whitespacesAndNewlines)
+                    break
+                }
+            }
+        }
+
+        // ── TOT/TTT (Time on Target / Time to Target) ─────────────────────
+        if report.restrictions?.totTtt == nil {
+            let tPatterns = [
+                #"(?i)\b(tot|ttt|time\s+on\s+target|time\s+to\s+target)\s*[:\-]?\s*(.+?)(?:\.|,\s*(?:fah|acas?|danger|lat|post|remarks)|$)"#
+            ]
+            for pat in tPatterns {
+                if let type = extractCapture(pat, in: segment, group: 1),
+                   let val = extractCapture(pat, in: segment, group: 2),
+                   !val.trimmingCharacters(in: .whitespaces).isEmpty {
+
+                    let label = type.uppercased() == "TIME TO TARGET" ? "TTT" : (type.uppercased() == "TIME ON TARGET" ? "TOT" : type.uppercased())
+                    report.restrictions?.totTtt = "\(label): \(val.trimmingCharacters(in: .whitespacesAndNewlines))"
+                    break
+                }
+            }
+        }
+
+        // ── Lat/Alt ───────────────────────────────────────────────────────
+        if report.restrictions?.latAlt == nil {
+            let laPatterns = [
+                #"(?i)\b(?:lat\s*\/?\s*alt|lateral(?:ly)?\s*(?:and)?\s*alt(?:itude)?)\s*[:\-]?\s*(.+?)(?:\.|,\s*(?:fah|acas?|tot|ttt|danger|post|remarks)|$)"#,
+                #"(?i)\b(?:stay|remain)\s+(above|below)\s+(\d+\s*(?:ft|feet|msl|agl))\b"#
+            ]
+            for (i, pat) in laPatterns.enumerated() {
+                if i == 0 {
+                    if let val = extractCapture(pat, in: segment, group: 1), !val.trimmingCharacters(in: .whitespaces).isEmpty {
+                        report.restrictions?.latAlt = val.trimmingCharacters(in: .whitespacesAndNewlines)
+                        break
+                    }
+                } else { // "stay above/below X"
+                    if let dir = extractCapture(pat, in: segment, group: 1),
+                       let alt = extractCapture(pat, in: segment, group: 2) {
+                        report.restrictions?.latAlt = "\(dir.capitalized) \(alt)"
+                        break
+                    }
+                }
+            }
+        }
+
+        // ── POST LAUNCH ABORT ─────────────────────────────────────────────
+        if report.restrictions?.postLaunchAbort == nil {
+            let plaPatterns = [
+                #"(?i)\b(?:post\s+launch\s+abort(?:ion)?|pla)\s*[:\-]?\s*(.+?)(?:\.|,\s*(?:fah|acas?|tot|ttt|danger|lat|remarks)|$)"#
+            ]
+            for pat in plaPatterns {
+                if let val = extractCapture(pat, in: segment, group: 1), !val.trimmingCharacters(in: .whitespaces).isEmpty {
+                    report.restrictions?.postLaunchAbort = val.trimmingCharacters(in: .whitespacesAndNewlines)
+                    break
+                }
+            }
+        }
+
+        if !segment.isEmpty {
+            report.restrictions?.text = join(report.restrictions?.text, segment)
+        }
+    }
+
     /// Parses a free-text Safety of Flight segment and populates SafetyOfFlight fields.
     private func extractSafetyOfFlightFields(from segment: String) {
         if report.safetyOfFlight == nil { report.safetyOfFlight = SafetyOfFlight() }
@@ -502,6 +673,21 @@ class JTACParser: ObservableObject {
             }
             if !parts.isEmpty {
                 report.safetyOfFlight?.emergencyConsiderations = parts.joined(separator: "; ")
+            }
+        }
+
+        // ── 5. E POINT ───────────────────────────────────────────────────────
+        if report.safetyOfFlight?.ePoint == nil {
+            let patterns: [String] = [
+                #"(?i)\b(?:5[\s\-\.]+)?e\s*point\s*[:\-]?\s*(.+?)(?:\.|$)"#,
+                #"(?i)\bepoint\s*[:\-]?\s*(.+?)(?:\.|$)"#
+            ]
+            for pat in patterns {
+                if let val = extractCapture(pat, in: segment, group: 1),
+                   !val.trimmingCharacters(in: .whitespaces).isEmpty {
+                    report.safetyOfFlight?.ePoint = val.trimmingCharacters(in: .whitespacesAndNewlines)
+                    break
+                }
             }
         }
     }
@@ -969,16 +1155,16 @@ class JTACParser: ObservableObject {
             if !trailing.isEmpty { parseNineLineText(trailing) }
 
         case .remarks:
-            report.remarks = join(report.remarks, trailing)
+            extractRemarksFields(from: fullSegment)
 
         case .restrictions:
-            report.restrictions = join(report.restrictions, trailing)
+            extractRestrictionsFields(from: fullSegment)
 
         case .bda:
-            report.bda = join(report.bda, trailing)
+            extractBDAFields(from: fullSegment)
 
         case .gamePlan:
-            report.gamePlan = join(report.gamePlan, trailing)
+            extractGamePlanFields(from: fullSegment)
 
         case .safetyOfFlight:
             if report.safetyOfFlight == nil { report.safetyOfFlight = SafetyOfFlight() }
@@ -1003,22 +1189,96 @@ class JTACParser: ObservableObject {
             parseNineLineText(segment)
 
         case .remarks:
-            report.remarks = join(report.remarks, segment)
+            extractRemarksFields(from: segment)
 
         case .restrictions:
-            report.restrictions = join(report.restrictions, segment)
+            extractRestrictionsFields(from: segment)
 
         case .bda:
-            report.bda = join(report.bda, segment)
+            extractBDAFields(from: segment)
 
         case .gamePlan:
-            report.gamePlan = join(report.gamePlan, segment)
+            extractGamePlanFields(from: segment)
 
         case .safetyOfFlight:
             extractSafetyOfFlightFields(from: segment)
 
         case .unknown:
             break
+        }
+    }
+
+    // MARK: - Game Plan Field Extraction
+
+    private func extractGamePlanFields(from segment: String) {
+        if report.gamePlan == nil { report.gamePlan = GamePlan() }
+
+        // TYPE OF CONTROL
+        if report.gamePlan?.typeOfControl == nil {
+            let tcPatterns = [
+                #"(?i)\btype\s+(one|two|three|1|2|3)\s*(?:control)?\b"#,
+                #"(?i)\btype\s*[:\-]?\s*(one|two|three|1|2|3)\b"#
+            ]
+            for pat in tcPatterns {
+                if let val = extractCapture(pat, in: segment, group: 1) {
+                    report.gamePlan?.typeOfControl = "Type " + val.capitalized
+                    break
+                }
+            }
+        }
+
+        // METHOD OF ATTACK
+        if report.gamePlan?.methodOfAttack == nil {
+            let moaPatterns = [
+                #"(?i)\b(?:method\s+of\s+attack|moa)\s*[:\-]?\s*(bot|boc|bomb\s+on\s+target|bomb\s+on\s+coordinate)\b"#,
+                #"(?i)\b(bot|boc)\b"#
+            ]
+            for pat in moaPatterns {
+                if let val = extractCapture(pat, in: segment, group: 1) {
+                    report.gamePlan?.methodOfAttack = val.uppercased()
+                    break
+                }
+            }
+        }
+
+        // GC INTENT
+        if report.gamePlan?.gcIntent == nil {
+            if let val = extractCapture(#"(?i)\b(?:gc\s+intent|intent|ground\s+commander\s+intent)\s*[:\-]?\s*(.+?)(?:\.|,\s*(?:cde|ordnance|desired|effect)|$)"#, in: segment, group: 1) {
+                report.gamePlan?.gcIntent = val.trimmingCharacters(in: .whitespaces)
+            }
+        }
+
+        // CDE
+        if report.gamePlan?.cde == nil {
+            let cdePatterns = [
+                #"(?i)\b(?:cde|collateral\s+damage\s+estimate)\s*[:\-]?\s*(.+?)(?:\.|,\s*(?:ordnance|desired|effect|gc|intent)|$)"#
+            ]
+            for pat in cdePatterns {
+                if let val = extractCapture(pat, in: segment, group: 1) {
+                    report.gamePlan?.cde = val.trimmingCharacters(in: .whitespaces)
+                    break
+                }
+            }
+        }
+
+        // ORDNANCE
+        if report.gamePlan?.ordnance == nil {
+            if let val = extractCapture(#"(?i)\b(?:ordnance|ord|weapon)\s*[:\-]?\s*(.+?)(?:\.|,\s*(?:desired|effect|cde|gc|intent)|$)"#, in: segment, group: 1) {
+                report.gamePlan?.ordnance = val.trimmingCharacters(in: .whitespaces)
+            }
+        }
+
+        // DESIRED EFFECT
+        if report.gamePlan?.desiredEffect == nil {
+            let dePatterns = [
+                #"(?i)\b(?:desired\s+effect|effect)\s*[:\-]?\s*(.+?)(?:\.|,\s*(?:cde|ordnance|gc|intent)|$)"#
+            ]
+            for pat in dePatterns {
+                if let val = extractCapture(pat, in: segment, group: 1) {
+                    report.gamePlan?.desiredEffect = val.trimmingCharacters(in: .whitespaces)
+                    break
+                }
+            }
         }
     }
 
@@ -1669,6 +1929,92 @@ class JTACParser: ObservableObject {
             result.append(remaining.trimmingCharacters(in: .whitespaces))
         }
         return result.filter { !$0.isEmpty }
+    }
+
+    // MARK: - BDA Extraction
+
+    /// Parses a free-text BDA segment and populates BDAData fields.
+    private func extractBDAFields(from segment: String) {
+        if report.bda == nil { report.bda = BDAData() }
+        let lower = segment.lowercased()
+
+        // ── STATUS (Successful / Unsuccessful / Unknown) ─────────────────
+        if report.bda?.status == nil {
+            if let val = extractCapture(#"(?i)\b(successful|unsuccessful|unknown)\b"#, in: segment, group: 1) {
+                report.bda?.status = val.uppercased()
+            } else if lower.contains("shack") || lower.contains("splash") || lower.contains("good effect") {
+                report.bda?.status = "SUCCESSFUL"
+            }
+        }
+
+        // ── SIZE ──────────────────────────────────────────────────────────
+        if report.bda?.size == nil {
+            let patterns = [
+                #"(?i)\bsize\s*[:\-]?\s*(.+?)(?:\.|,\s*(?:activity|location|time|remarks)|$)"#
+            ]
+            for pat in patterns {
+                if let val = extractCapture(pat, in: segment, group: 1), !val.trimmingCharacters(in: .whitespaces).isEmpty {
+                    report.bda?.size = val.trimmingCharacters(in: .whitespacesAndNewlines)
+                    break
+                }
+            }
+        }
+
+        // ── ACTIVITY ──────────────────────────────────────────────────────
+        if report.bda?.activity == nil {
+            let patterns = [
+                #"(?i)\bactivity\s*[:\-]?\s*(.+?)(?:\.|,\s*(?:size|location|time|remarks)|$)"#
+            ]
+            for pat in patterns {
+                if let val = extractCapture(pat, in: segment, group: 1), !val.trimmingCharacters(in: .whitespaces).isEmpty {
+                    report.bda?.activity = val.trimmingCharacters(in: .whitespacesAndNewlines)
+                    break
+                }
+            }
+        }
+
+        // ── LOCATION ──────────────────────────────────────────────────────
+        if report.bda?.location == nil {
+            let patterns = [
+                #"(?i)\blocation\s*[:\-]?\s*(.+?)(?:\.|,\s*(?:size|activity|time|remarks)|$)"#
+            ]
+            for pat in patterns {
+                if let val = extractCapture(pat, in: segment, group: 1), !val.trimmingCharacters(in: .whitespaces).isEmpty {
+                    report.bda?.location = val.trimmingCharacters(in: .whitespacesAndNewlines)
+                    break
+                }
+            }
+        }
+
+        // ── TIME ──────────────────────────────────────────────────────────
+        if report.bda?.time == nil {
+            let patterns = [
+                #"(?i)\btime\s*[:\-]?\s*(.+?)(?:\.|,\s*(?:size|activity|location|remarks)|$)"#
+            ]
+            for pat in patterns {
+                if let val = extractCapture(pat, in: segment, group: 1), !val.trimmingCharacters(in: .whitespaces).isEmpty {
+                    report.bda?.time = val.trimmingCharacters(in: .whitespacesAndNewlines)
+                    break
+                }
+            }
+        }
+
+        // ── REMARKS (within BDA) ──────────────────────────────────────────
+        if report.bda?.remarks == nil {
+            let patterns = [
+                #"(?i)\bremarks\s*[:\-]?\s*(.+?)(?:\.|,\s*(?:size|activity|location|time)|$)"#
+            ]
+            for pat in patterns {
+                if let val = extractCapture(pat, in: segment, group: 1), !val.trimmingCharacters(in: .whitespaces).isEmpty {
+                    report.bda?.remarks = val.trimmingCharacters(in: .whitespacesAndNewlines)
+                    break
+                }
+            }
+        }
+
+        if !segment.isEmpty {
+            report.bda?.text = join(report.bda?.text, segment)
+        }
     }
 
     // MARK: - String Helpers

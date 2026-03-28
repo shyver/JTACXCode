@@ -8,6 +8,8 @@ enum AppScreen {
     case nineLine
     case map
     case database
+    case settings
+    case archive
 }
 
 enum SectionType: String {

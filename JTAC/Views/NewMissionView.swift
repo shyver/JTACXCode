@@ -1,8 +1,11 @@
 import SwiftUI
+import SwiftData
 
 struct NewMissionView: View {
     @ObservedObject var viewModel: MainViewModel
     @Binding var currentView: AppScreen
+
+    @Query private var dbAssets: [AssetCallsign]
 
     // Mission Details
     @State private var campaignMissionName: String = ""
@@ -18,8 +21,16 @@ struct NewMissionView: View {
     @State private var abortCode: String = ""
 
     // Aircraft Type
-    @State private var selectedAircraftType: String = "A-10"
-    let aircraftTypes = ["A-10", "F-16", "F-18", "F-35", "AC-130", "MQ-9"]
+    @State private var selectedAircraftType: String = ""
+
+    private var availableAircrafts: [String] {
+        let dbNames = dbAssets.map { $0.aircraft }.filter { !$0.isEmpty }
+        var uniqueNames = Array(Set(dbNames)).sorted()
+        if uniqueNames.isEmpty {
+            uniqueNames = ["A-10", "F-16", "F-18", "F-35", "AC-130", "MQ-9"]
+        }
+        return uniqueNames
+    }
 
     // Frequencies
     @State private var primaryFreq: String = ""
@@ -43,6 +54,8 @@ struct NewMissionView: View {
     @State private var otherAssets: [OtherAsset] = []
 
     @State private var showAbortMissionSetupAlert: Bool = false
+    @State private var showEndMissionAlert: Bool = false
+    @Environment(\.modelContext) private var modelContext
 
     /// Prevents repeatedly overwriting in-progress edits when the view re-appears.
     @State private var hasLoadedFromMissionData: Bool = false
@@ -91,7 +104,7 @@ struct NewMissionView: View {
 
                 Section {
                     Picker("Aircraft", selection: $selectedAircraftType) {
-                        ForEach(aircraftTypes, id: \.self) { Text($0) }
+                        ForEach(availableAircrafts, id: \.self) { Text($0) }
                     }
                 } header: {
                     Text("Aircraft Type")
@@ -137,27 +150,12 @@ struct NewMissionView: View {
                 }
 
                 Section {
-                    // Using onTapGesture on row content instead of Button prevents the row
-                    // from becoming a drag-intercepting full-width button inside Form.
+                    // Geometry
                     Text("GEOMETRY (IPs, HOLDs, BPs, CPs)")
                         .foregroundColor(.white)
                         .contentShape(Rectangle())
                         .onTapGesture {
                             geometryPoints.append(GeometryPoint())
-                        }
-
-                    Text("FRIENDLY FORCES (FLOT, FSCL, CFL, RFL)")
-                        .foregroundColor(.white)
-                        .contentShape(Rectangle())
-                        .onTapGesture {
-                            friendlyForces.append(FriendlyForce())
-                        }
-
-                    Text("OTHER ASSETS IN AREA")
-                        .foregroundColor(.white)
-                        .contentShape(Rectangle())
-                        .onTapGesture {
-                            otherAssets.append(OtherAsset())
                         }
 
                     if !geometryPoints.isEmpty {
@@ -170,6 +168,14 @@ struct NewMissionView: View {
                         }
                     }
 
+                    // Friendly Forces
+                    Text("FRIENDLY FORCES (FLOT, FSCL, CFL, RFL)")
+                        .foregroundColor(.white)
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            friendlyForces.append(FriendlyForce())
+                        }
+
                     if !friendlyForces.isEmpty {
                         ForEach($friendlyForces) { $force in
                             FriendlyForceEditor(force: $force) {
@@ -179,6 +185,14 @@ struct NewMissionView: View {
                             }
                         }
                     }
+
+                    // Other Assets
+                    Text("OTHER ASSETS IN AREA")
+                        .foregroundColor(.white)
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            otherAssets.append(OtherAsset())
+                        }
 
                     if !otherAssets.isEmpty {
                         ForEach($otherAssets) { $asset in
@@ -258,6 +272,16 @@ struct NewMissionView: View {
                         .foregroundColor(.white)
                     }
                 }
+                
+                ToolbarItem(placement: .topBarTrailing) {
+                    if viewModel.missionData != nil {
+                        Button("End Mission") {
+                            showEndMissionAlert = true
+                        }
+                        .foregroundColor(.red)
+                        .bold()
+                    }
+                }
             }
             .alert("Abort mission setup?", isPresented: $showAbortMissionSetupAlert) {
                 Button("Cancel", role: .cancel) {}
@@ -268,6 +292,14 @@ struct NewMissionView: View {
                 }
             } message: {
                 Text("Any entered mission details will be lost.")
+            }
+            .alert("End & Archive Mission?", isPresented: $showEndMissionAlert) {
+                Button("Cancel", role: .cancel) {}
+                Button("End Mission", role: .destructive) {
+                    endAndArchiveMission()
+                }
+            } message: {
+                Text("This will save the current mission and all extracted radio logs to the Archive, and you will be returned to the Home screen.")
             }
 #if DEBUG
             .overlay(alignment: .topTrailing) {
@@ -285,6 +317,10 @@ struct NewMissionView: View {
         }
         .tint(.white)
         .onAppear {
+            if selectedAircraftType.isEmpty {
+                selectedAircraftType = availableAircrafts.first ?? "A-10"
+            }
+
             guard !hasLoadedFromMissionData else { return }
             guard let mission = viewModel.missionData else { return }
 
@@ -318,6 +354,26 @@ struct NewMissionView: View {
 
             hasLoadedFromMissionData = true
         }
+    }
+    
+    private func endAndArchiveMission() {
+        if let mission = viewModel.missionData {
+            let jtacReport = viewModel.jtacViewModel.report
+            let archived = ArchivedMission(
+                name: mission.campaignMissionName,
+                missionData: mission,
+                report: jtacReport
+            )
+            modelContext.insert(archived)
+            try? modelContext.save()
+        }
+        
+        // Reset state
+        viewModel.missionData = nil
+        viewModel.jtacViewModel.clearAll()
+        viewModel.transcriptHistory.removeAll()
+        hasLoadedFromMissionData = false
+        currentView = .home
     }
 }
 

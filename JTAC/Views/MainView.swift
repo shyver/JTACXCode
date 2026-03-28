@@ -208,6 +208,34 @@ struct NineLineSection: View {
                                 .frame(maxWidth: .infinity, alignment: .leading)
                                 .padding(10)
                         }
+                    } else if selectedTab.id == "nineLineBrief" {
+                        NineLineBriefDetailView(nineLine: jtacViewModel.report.nineLine, isCompact: true)
+                            .padding(.horizontal, 10)
+                            .padding(.bottom, 10)
+                    } else if selectedTab.id == "safetyOfFlight" {
+                        SafetyOfFlightDetailView(safety: jtacViewModel.report.safetyOfFlight, isCompact: true)
+                            .padding(.horizontal, 10)
+                            .padding(.bottom, 10)
+                    } else if selectedTab.id == "situationUpdate" {
+                        SituationUpdateDetailView(sitrep: jtacViewModel.report.situationUpdate, isCompact: true)
+                            .padding(.horizontal, 10)
+                            .padding(.bottom, 10)
+                    } else if selectedTab.id == "gamePlan" {
+                        GamePlanDetailView(gamePlan: jtacViewModel.report.gamePlan, isCompact: true)
+                            .padding(.horizontal, 10)
+                            .padding(.bottom, 10)
+                    } else if selectedTab.id == "remarks" {
+                        RemarksDetailView(remarks: jtacViewModel.report.remarks, isCompact: true)
+                            .padding(.horizontal, 10)
+                            .padding(.bottom, 10)
+                    } else if selectedTab.id == "restrictions" {
+                        RestrictionsDetailView(restrictions: jtacViewModel.report.restrictions, isCompact: true)
+                            .padding(.horizontal, 10)
+                            .padding(.bottom, 10)
+                    } else if selectedTab.id == "bda" {
+                        BDADetailView(bda: jtacViewModel.report.bda, isCompact: true)
+                            .padding(.horizontal, 10)
+                            .padding(.bottom, 10)
                     } else {
                         let text = jtacViewModel.content(for: selectedTab.jtacCategoryKey)
                         if text.isEmpty {
@@ -264,9 +292,10 @@ struct MapSection: View {
 // MARK: - Helper Views
 struct TranscriptLine: View {
     let text: String
+    @AppStorage("autoCapitalizeTranscripts") private var autoCapitalize: Bool = true
     
     var body: some View {
-        Text(text)
+        Text(autoCapitalize ? text.uppercased() : text)
             .font(.system(size: 16))
             .foregroundColor(.white)
             .fixedSize(horizontal: false, vertical: true)

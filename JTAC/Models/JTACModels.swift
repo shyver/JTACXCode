@@ -2,15 +2,15 @@ import Foundation
 
 // MARK: - Top-level report
 
-struct JTACReport {
+struct JTACReport: Codable {
     var cas: CASData?
     var situationUpdate: SituationUpdate?
     var safetyOfFlight: SafetyOfFlight?
     var nineLine: NineLine?
-    var remarks: String?
-    var restrictions: String?
-    var bda: String?
-    var gamePlan: String?
+    var remarks: Remarks?
+    var restrictions: Restrictions?
+    var bda: BDAData?
+    var gamePlan: GamePlan?
 
     var isEmpty: Bool {
         cas == nil &&
@@ -24,23 +24,89 @@ struct JTACReport {
     }
 }
 
+// MARK: - Remarks
+
+struct Remarks: Codable {
+    var laserTgtLine: String?
+    var ptl: String?
+    var gunTgtLine: String?
+    var maxOrd: String?
+    var text: String? // Fallback or extra text
+
+    var isEmpty: Bool {
+        laserTgtLine == nil && ptl == nil && gunTgtLine == nil && maxOrd == nil && text == nil
+    }
+}
+
+// MARK: - Restrictions
+
+struct Restrictions: Codable {
+    var dangerClose: String?
+    var fah: String?
+    var acas: String?
+    var totTtt: String?
+    var latAlt: String?
+    var postLaunchAbort: String?
+    var text: String? // Fallback
+
+    var isEmpty: Bool {
+        dangerClose == nil && fah == nil && acas == nil && totTtt == nil &&
+        latAlt == nil && postLaunchAbort == nil && text == nil
+    }
+}
+
+// MARK: - BDA
+
+struct BDAData: Codable {
+    var status: String?   // SUCCESSFUL/UNSUCCESSFUL/UNKNOWN
+    var size: String?
+    var activity: String?
+    var location: String?
+    var time: String?
+    var remarks: String?
+    var text: String?     // Fallback text
+
+    var isEmpty: Bool {
+        status == nil && size == nil && activity == nil && location == nil &&
+        time == nil && remarks == nil && text == nil
+    }
+}
+
+// MARK: - Game Plan
+
+struct GamePlan: Codable {
+    var typeOfControl:  String?
+    var methodOfAttack: String?
+    var gcIntent:       String?
+    var cde:            String?
+    var ordnance:       String?
+    var desiredEffect:  String?
+
+    var isEmpty: Bool {
+        typeOfControl == nil && methodOfAttack == nil && gcIntent == nil &&
+        cde == nil && ordnance == nil && desiredEffect == nil
+    }
+}
+
 // MARK: - Safety of Flight
 
-struct SafetyOfFlight {
+struct SafetyOfFlight: Codable {
     var threats:              String?   // 1 — threats to the aircraft
     var friendlyAssets:       String?   // 2 — friendly aircraft/assets in the area
     var terrainsObstacles:    String?   // 3 — terrain, wires, towers, obstacles
     var emergencyConsiderations: String? // 4 — divert fields, FARP, SAR, bingo
+    var ePoint:               String?   // 5 - E point
 
     var isEmpty: Bool {
         threats == nil && friendlyAssets == nil &&
-        terrainsObstacles == nil && emergencyConsiderations == nil
+        terrainsObstacles == nil && emergencyConsiderations == nil &&
+        ePoint == nil
     }
 }
 
 // MARK: - Situation Update (SITREP)
 
-struct SituationUpdate {
+struct SituationUpdate: Codable {
     var threats:     String?   // e.g. "Small arms and possible MANPADS"
     var targets:     String?   // enemy vehicles / forces description
     var friendlies:  String?   // friendly positions (unit, direction, distance)
@@ -57,7 +123,7 @@ struct SituationUpdate {
 
 // MARK: - CAS check-in
 
-struct CASData {
+struct CASData: Codable {
     var callsign:     String?   // e.g. "Viper 1-1"
     var mission:      String?   // mission number / type
     var aircraftType: String?   // e.g. "A-10C", "F-16C"
@@ -75,7 +141,7 @@ struct CASData {
 
 // MARK: - 9-Line brief
 
-struct NineLine {
+struct NineLine: Codable {
     var ip: String?               // Line 1 – Initial Point
     var heading: String?          // Line 2 – Heading from IP
     var distance: String?         // Line 3 – Distance from IP

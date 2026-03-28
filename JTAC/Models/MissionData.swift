@@ -1,7 +1,7 @@
 import Foundation
 
 // MARK: - Main Mission Data Structure
-struct MissionData {
+struct MissionData: Codable {
     var campaignMissionName: String
     /// Mission authentication / challenge-response / codeword.
     var authentication: String
@@ -13,7 +13,7 @@ struct MissionData {
 }
 
 // MARK: - Nested Data Structures
-struct CASCheckin {
+struct CASCheckin: Codable {
     var callsign: String
     var jtacCallsign: String
     var playTime: String
@@ -23,21 +23,21 @@ struct CASCheckin {
     var abortCode: String
 }
 
-struct Frequencies {
+struct Frequencies: Codable {
     var primary: String
     var guardFreq: String
     var jtac: String
 }
 
-struct SPINSNotes {
+struct SPINSNotes: Codable {
     var geometryPoints: [GeometryPoint]
     var friendlyForces: [FriendlyForce]
     var otherAssets: [OtherAsset]
 }
 
 // MARK: - SPINS Notes Details
-struct GeometryPoint: Identifiable {
-    let id = UUID()
+struct GeometryPoint: Identifiable, Codable {
+    var id = UUID()
     var type: PointType = .ip
     var name: String = ""
     var latitude: String = ""
@@ -45,7 +45,7 @@ struct GeometryPoint: Identifiable {
     var notes: String = ""
 }
 
-enum PointType: String, CaseIterable, Identifiable {
+enum PointType: String, CaseIterable, Identifiable, Codable {
     case ip = "IP"
     case hold = "HOLD"
     case bp = "BP"
@@ -55,8 +55,8 @@ enum PointType: String, CaseIterable, Identifiable {
     var id: Self { self }
 }
 
-struct FriendlyForce: Identifiable {
-    let id = UUID()
+struct FriendlyForce: Identifiable, Codable {
+    var id = UUID()
     var type: FriendlyForceType = .flot
     var nameUnit: String = ""
     var latitude: String = ""
@@ -64,7 +64,7 @@ struct FriendlyForce: Identifiable {
     var notes: String = ""
 }
 
-enum FriendlyForceType: String, CaseIterable, Identifiable {
+enum FriendlyForceType: String, CaseIterable, Identifiable, Codable {
     case flot = "FLOT"
     case fscl = "FSCL"
     case cfl = "CFL"
@@ -75,8 +75,8 @@ enum FriendlyForceType: String, CaseIterable, Identifiable {
     var id: Self { self }
 }
 
-struct OtherAsset: Identifiable {
-    let id = UUID()
+struct OtherAsset: Identifiable, Codable {
+    var id = UUID()
     var asset: String = ""
     var type: String = ""
     var callsign: String = ""

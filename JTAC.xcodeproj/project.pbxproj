@@ -7,6 +7,10 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		4F9B0B382F7753F6008B8394 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F9B0B372F7753F6008B8394 /* SettingsView.swift */; };
+		4F9B0B3B2F775CBC008B8394 /* ArchivedMissionDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F9B0B392F775CBC008B8394 /* ArchivedMissionDetailView.swift */; };
+		4F9B0B3C2F775CBC008B8394 /* ArchiveView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F9B0B3A2F775CBC008B8394 /* ArchiveView.swift */; };
+		4F9B0B3E2F775D00008B8394 /* ArchivedMission.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F9B0B3D2F775D00008B8394 /* ArchivedMission.swift */; };
 		4F9D8DAF2F718A7200D57CF8 /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F9D8DAD2F718A7200D57CF8 /* HomeView.swift */; };
 		4F9D8DB02F718A7200D57CF8 /* NewMissionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F9D8DAE2F718A7200D57CF8 /* NewMissionView.swift */; };
 		4F9D8DB22F71C53A00D57CF8 /* MissionData.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F9D8DB12F71C53A00D57CF8 /* MissionData.swift */; };
@@ -65,6 +69,10 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		4F9B0B372F7753F6008B8394 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		4F9B0B392F775CBC008B8394 /* ArchivedMissionDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArchivedMissionDetailView.swift; sourceTree = "<group>"; };
+		4F9B0B3A2F775CBC008B8394 /* ArchiveView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArchiveView.swift; sourceTree = "<group>"; };
+		4F9B0B3D2F775D00008B8394 /* ArchivedMission.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArchivedMission.swift; sourceTree = "<group>"; };
 		4F9D8DAD2F718A7200D57CF8 /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
 		4F9D8DAE2F718A7200D57CF8 /* NewMissionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NewMissionView.swift; sourceTree = "<group>"; };
 		4F9D8DB12F71C53A00D57CF8 /* MissionData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MissionData.swift; sourceTree = "<group>"; };
@@ -201,6 +209,7 @@
 		846627192F297BA7002935DE /* Models */ = {
 			isa = PBXGroup;
 			children = (
+				4F9B0B3D2F775D00008B8394 /* ArchivedMission.swift */,
 				4F9D8DB52F75A76200D57CF8 /* AppNavigation.swift */,
 				4F9D8DB32F72C8D900D57CF8 /* NineLineTabs.swift */,
 				4F9D8DB12F71C53A00D57CF8 /* MissionData.swift */,
@@ -222,6 +231,9 @@
 		8466271F2F297CB0002935DE /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				4F9B0B392F775CBC008B8394 /* ArchivedMissionDetailView.swift */,
+				4F9B0B3A2F775CBC008B8394 /* ArchiveView.swift */,
+				4F9B0B372F7753F6008B8394 /* SettingsView.swift */,
 				4F9D8DB72F75A81D00D57CF8 /* AirDefenseListView.swift */,
 				4F9D8DB82F75A81D00D57CF8 /* AssetsCallsignsListView.swift */,
 				4F9D8DB92F75A81D00D57CF8 /* DatabaseModels.swift */,
@@ -399,11 +411,14 @@
 				846627252F297D32002935DE /* NineLineView.swift in Sources */,
 				4F9D8DBC2F75A81D00D57CF8 /* DatabaseRootView.swift in Sources */,
 				4F9D8DBD2F75A81D00D57CF8 /* RedsListView.swift in Sources */,
+				4F9B0B382F7753F6008B8394 /* SettingsView.swift in Sources */,
 				4F9D8DBE2F75A81D00D57CF8 /* AssetsCallsignsListView.swift in Sources */,
 				4F9D8DBF2F75A81D00D57CF8 /* DatabaseModels.swift in Sources */,
 				4F9D8DC02F75A81D00D57CF8 /* AirDefenseListView.swift in Sources */,
 				4F9D8DB62F75A76200D57CF8 /* AppNavigation.swift in Sources */,
 				846627332F297E67002935DE /* AppColors.swift in Sources */,
+				4F9B0B3B2F775CBC008B8394 /* ArchivedMissionDetailView.swift in Sources */,
+				4F9B0B3C2F775CBC008B8394 /* ArchiveView.swift in Sources */,
 				8466272C2F297DD8002935DE /* MinimizeButton.swift in Sources */,
 				8466271B2F297BD2002935DE /* AppNavigation.swift in Sources */,
 				846626F12F297042002935DE /* Item.swift in Sources */,
@@ -413,6 +428,7 @@
 				8466272A2F297DB5002935DE /* SectionCard.swift in Sources */,
 				8466272E2F297DFE002935DE /* StatusBar.swift in Sources */,
 				846627302F297E25002935DE /* ActionButton.swift in Sources */,
+				4F9B0B3E2F775D00008B8394 /* ArchivedMission.swift in Sources */,
 				846627352F2CDA01002935DE /* MicrophonePermissionManager.swift in Sources */,
 				4F9D8DB22F71C53A00D57CF8 /* MissionData.swift in Sources */,
 				846627372F2CDA20002935DE /* AudioRecordingManager.swift in Sources */,

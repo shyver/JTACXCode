@@ -105,9 +105,10 @@ struct LiveTranscriptView: View {
 
 struct TranscriptMessage: View {
     let text: String
+    @AppStorage("autoCapitalizeTranscripts") private var autoCapitalize: Bool = true
 
     var body: some View {
-        Text(text)
+        Text(autoCapitalize ? text.uppercased() : text)
             .font(.system(size: 18))
             .foregroundColor(.white)
             .fixedSize(horizontal: false, vertical: true)
