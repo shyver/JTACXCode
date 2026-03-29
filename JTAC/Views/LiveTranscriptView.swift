@@ -84,12 +84,37 @@ struct LiveTranscriptView: View {
 
                     // Action buttons
                     HStack(spacing: 20) {
-                        ActionButton(title: "Confirm", color: AppColors.confirmGreen)
-                        ActionButton(title: "Correct", color: AppColors.correctYellow)
-                        ActionButton(title: "Reject", color: AppColors.rejectRed)
+                        ActionButton(title: "Confirm", color: AppColors.confirmGreen) {
+                            viewModel.confirmTranscript()
+                        }
+                        .disabled(viewModel.jtacViewModel.isParsing || viewModel.jtacViewModel.isDownloadingModel)
+                        
+                        ActionButton(title: "Correct", color: AppColors.correctYellow) {
+                            // TBD
+                        }
+                        .disabled(viewModel.jtacViewModel.isParsing || viewModel.jtacViewModel.isDownloadingModel)
+                        
+                        ActionButton(title: "Reject", color: AppColors.rejectRed) {
+                            viewModel.rejectUnconfirmedTranscript()
+                        }
+                        .disabled(viewModel.jtacViewModel.isParsing || viewModel.jtacViewModel.isDownloadingModel)
                     }
                     .padding(.horizontal, 20)
                     .padding(.top, 10)
+                    
+                    if viewModel.jtacViewModel.isDownloadingModel {
+                        Text("Downloading AI Model... \(Int(viewModel.jtacViewModel.downloadProgress * 100))%")
+                            .font(.system(size: 14))
+                            .foregroundColor(.yellow)
+                            .padding(.top, 5)
+                            .transition(.opacity)
+                    } else if viewModel.jtacViewModel.isParsing {
+                        Text("AI Analyzing Transcript...")
+                            .font(.system(size: 14))
+                            .foregroundColor(.yellow)
+                            .padding(.top, 5)
+                            .transition(.opacity)
+                    }
 
                     Spacer()
 

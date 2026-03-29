@@ -1,4 +1,4 @@
-  import SwiftUI
+import SwiftUI
 import Combine
 
 class MainViewModel: ObservableObject {
@@ -7,6 +7,9 @@ class MainViewModel: ObservableObject {
     @Published var liveTranscript = ""
     @Published var transcriptHistory: [TranscriptEntry] = []
     @Published var missionData: MissionData?
+
+    // Tracks how many segments have been confirmed so we know what to reject
+    @Published var lastConfirmedIndex: Int = 0
 
     // Shared state: selected NineLine tab id (used by both collapsed + expanded views).
     // Note: kept as a raw string so MainViewModel doesn't depend on NineLineTabs target membership.
@@ -69,9 +72,7 @@ class MainViewModel: ObservableObject {
                 print("[MainViewModel] Appended to transcriptHistory. Count is now \(self.transcriptHistory.count)")
             }
             
-            // Full re-parse — parser resets and processes everything.
-            print("[MainViewModel] Passing fullText to jtacViewModel.reparse")
-            self.jtacViewModel.reparse(fullText: fullText)
+            // WE NO LONGER AUTO-PARSE HERE. Parsing happens when user clicks Confirm.
         }
     }
     
@@ -125,8 +126,30 @@ class MainViewModel: ObservableObject {
     func clearLiveTranscript() {
         liveTranscript = ""
         transcriptHistory.removeAll()
+        lastConfirmedIndex = 0
         lastReportedFullText = ""
         jtacViewModel.reset()
+    }
+    
+    // MARK: - Manual Interpretation
+    
+    /// Confirms the current transcript history and sends all messages for interpretation.
+    func confirmTranscript() {
+        print("[MainViewModel] confirmTranscript pressed.")
+        lastConfirmedIndex = transcriptHistory.count
+        
+        let fullTextToParse = transcriptHistory.map { $0.text }.joined(separator: " ")
+        print("[MainViewModel] Passing text to jtacViewModel.reparse: '\(fullTextToParse)'")
+        jtacViewModel.reparse(fullText: fullTextToParse)
+    }
+    
+    /// Rejects the unconfirmed portion of the transcript.
+    func rejectUnconfirmedTranscript() {
+        print("[MainViewModel] rejectUnconfirmedTranscript pressed.")
+        if transcriptHistory.count > lastConfirmedIndex {
+            transcriptHistory.removeSubrange(lastConfirmedIndex...)
+            print("[MainViewModel] Rejected segments back to index \(lastConfirmedIndex).")
+        }
     }
     
     func requestReturnToHome() {

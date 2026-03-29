@@ -7,6 +7,9 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		4F091BC72F788CFA00EFCFEA /* JTACLLMParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F091BC62F788CFA00EFCFEA /* JTACLLMParser.swift */; };
+		4F091BCA2F788DC200EFCFEA /* MLX in Frameworks */ = {isa = PBXBuildFile; productRef = 97BF2A075DCAD7E3C06EE8FC /* MLX */; };
+		4F091BCB2F788DC200EFCFEA /* MLXLLM in Frameworks */ = {isa = PBXBuildFile; productRef = 0482268DA72B2F5F09C8E699 /* MLXLLM */; };
 		4F9B0B382F7753F6008B8394 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F9B0B372F7753F6008B8394 /* SettingsView.swift */; };
 		4F9B0B3B2F775CBC008B8394 /* ArchivedMissionDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F9B0B392F775CBC008B8394 /* ArchivedMissionDetailView.swift */; };
 		4F9B0B3C2F775CBC008B8394 /* ArchiveView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F9B0B3A2F775CBC008B8394 /* ArchiveView.swift */; };
@@ -21,6 +24,7 @@
 		4F9D8DBE2F75A81D00D57CF8 /* AssetsCallsignsListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F9D8DB82F75A81D00D57CF8 /* AssetsCallsignsListView.swift */; };
 		4F9D8DBF2F75A81D00D57CF8 /* DatabaseModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F9D8DB92F75A81D00D57CF8 /* DatabaseModels.swift */; };
 		4F9D8DC02F75A81D00D57CF8 /* AirDefenseListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F9D8DB72F75A81D00D57CF8 /* AirDefenseListView.swift */; };
+		61503292F89A12284F3A8BAA /* MLX in Frameworks */ = {isa = PBXBuildFile; productRef = C06C5B0DE74F243B33CDB9B9 /* MLX */; };
 		846626ED2F297042002935DE /* JTACApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 846626EC2F297042002935DE /* JTACApp.swift */; };
 		846626F12F297042002935DE /* Item.swift in Sources */ = {isa = PBXBuildFile; fileRef = 846626F02F297042002935DE /* Item.swift */; };
 		846626F32F297044002935DE /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 846626F22F297044002935DE /* Assets.xcassets */; };
@@ -49,6 +53,7 @@
 		846627422F2CDE00002935DE /* CustomLanguageModelBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 846627432F2CDE01002935DE /* CustomLanguageModelBuilder.swift */; };
 		846627442F2CDE10002935DE /* SpeechCorrectionEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 846627452F2CDE11002935DE /* SpeechCorrectionEngine.swift */; };
 		846627462F2CDE20002935DE /* SpeechManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 846627472F2CDE21002935DE /* SpeechManager.swift */; };
+		E26B85E5FB1687A673AC5166 /* MLXLLM in Frameworks */ = {isa = PBXBuildFile; productRef = 1773338CE3AA3C094FB49350 /* MLXLLM */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -69,6 +74,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		4F091BC62F788CFA00EFCFEA /* JTACLLMParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JTACLLMParser.swift; sourceTree = "<group>"; };
 		4F9B0B372F7753F6008B8394 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		4F9B0B392F775CBC008B8394 /* ArchivedMissionDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArchivedMissionDetailView.swift; sourceTree = "<group>"; };
 		4F9B0B3A2F775CBC008B8394 /* ArchiveView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArchiveView.swift; sourceTree = "<group>"; };
@@ -123,6 +129,10 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				4F091BCB2F788DC200EFCFEA /* MLXLLM in Frameworks */,
+				4F091BCA2F788DC200EFCFEA /* MLX in Frameworks */,
+				61503292F89A12284F3A8BAA /* MLX in Frameworks */,
+				E26B85E5FB1687A673AC5166 /* MLXLLM in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -143,12 +153,20 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		4F091BCC2F78C60600EFCFEA /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
 		846626E02F297042002935DE = {
 			isa = PBXGroup;
 			children = (
 				846626EB2F297042002935DE /* JTAC */,
 				846626FF2F297044002935DE /* JTACTests */,
 				846627092F297044002935DE /* JTACUITests */,
+				4F091BCC2F78C60600EFCFEA /* Frameworks */,
 				846626EA2F297042002935DE /* Products */,
 			);
 			sourceTree = "<group>";
@@ -272,6 +290,7 @@
 				846627432F2CDE01002935DE /* CustomLanguageModelBuilder.swift */,
 				846627452F2CDE11002935DE /* SpeechCorrectionEngine.swift */,
 				846627472F2CDE21002935DE /* SpeechManager.swift */,
+				4F091BC62F788CFA00EFCFEA /* JTACLLMParser.swift */,
 			);
 			path = Utilities;
 			sourceTree = "<group>";
@@ -292,6 +311,10 @@
 			dependencies = (
 			);
 			name = JTAC;
+			packageProductDependencies = (
+				97BF2A075DCAD7E3C06EE8FC /* MLX */,
+				0482268DA72B2F5F09C8E699 /* MLXLLM */,
+			);
 			productName = JTAC;
 			productReference = 846626E92F297042002935DE /* JTAC.app */;
 			productType = "com.apple.product-type.application";
@@ -364,6 +387,10 @@
 				Base,
 			);
 			mainGroup = 846626E02F297042002935DE;
+			packageReferences = (
+				94DA0D1611F2CAF208EE5B71 /* XCRemoteSwiftPackageReference "mlx-swift" */,
+				CF397A87B0D722842EDBB3B2 /* XCRemoteSwiftPackageReference "mlx-swift-examples" */,
+			);
 			productRefGroup = 846626EA2F297042002935DE /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
@@ -412,6 +439,7 @@
 				4F9D8DBC2F75A81D00D57CF8 /* DatabaseRootView.swift in Sources */,
 				4F9D8DBD2F75A81D00D57CF8 /* RedsListView.swift in Sources */,
 				4F9B0B382F7753F6008B8394 /* SettingsView.swift in Sources */,
+				4F091BC72F788CFA00EFCFEA /* JTACLLMParser.swift in Sources */,
 				4F9D8DBE2F75A81D00D57CF8 /* AssetsCallsignsListView.swift in Sources */,
 				4F9D8DBF2F75A81D00D57CF8 /* DatabaseModels.swift in Sources */,
 				4F9D8DC02F75A81D00D57CF8 /* AirDefenseListView.swift in Sources */,
@@ -532,6 +560,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
@@ -589,6 +618,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
@@ -613,6 +643,7 @@
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = JTAC/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "RT-CAS";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "This app needs microphone access to record radio communications for transcription.";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
@@ -624,7 +655,7 @@
 				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphonesimulator*]" = UIStatusBarStyleDefault;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				IPHONEOS_DEPLOYMENT_TARGET = 17.4;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
@@ -655,6 +686,7 @@
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = JTAC/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "RT-CAS";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "This app needs microphone access to record radio communications for transcription.";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
@@ -666,7 +698,7 @@
 				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphonesimulator*]" = UIStatusBarStyleDefault;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				IPHONEOS_DEPLOYMENT_TARGET = 17.4;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
@@ -689,7 +721,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEAD_CODE_STRIPPING = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 17.4;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				MACOSX_DEPLOYMENT_TARGET = 14.4;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.baha.com.JTACTests;
@@ -711,7 +743,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEAD_CODE_STRIPPING = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 17.4;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				MACOSX_DEPLOYMENT_TARGET = 14.4;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.baha.com.JTACTests;
@@ -732,7 +764,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEAD_CODE_STRIPPING = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 17.4;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				MACOSX_DEPLOYMENT_TARGET = 14.4;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.baha.com.JTACUITests;
@@ -753,7 +785,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEAD_CODE_STRIPPING = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 17.4;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				MACOSX_DEPLOYMENT_TARGET = 14.4;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.baha.com.JTACUITests;
@@ -807,6 +839,64 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		85F9C8E2661DB69344A0068F /* XCRemoteSwiftPackageReference "mlx-swift-examples" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/ml-explore/mlx-swift-examples.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.29.1;
+			};
+		};
+		94DA0D1611F2CAF208EE5B71 /* XCRemoteSwiftPackageReference "mlx-swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/ml-explore/mlx-swift.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 0.29.1;
+			};
+		};
+		C7C75A07019FCF27662B02F8 /* XCRemoteSwiftPackageReference "mlx-swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/ml-explore/mlx-swift.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 0.29.1;
+			};
+		};
+		CF397A87B0D722842EDBB3B2 /* XCRemoteSwiftPackageReference "mlx-swift-examples" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/ml-explore/mlx-swift-examples.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.29.1;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		0482268DA72B2F5F09C8E699 /* MLXLLM */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = CF397A87B0D722842EDBB3B2 /* XCRemoteSwiftPackageReference "mlx-swift-examples" */;
+			productName = MLXLLM;
+		};
+		1773338CE3AA3C094FB49350 /* MLXLLM */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 85F9C8E2661DB69344A0068F /* XCRemoteSwiftPackageReference "mlx-swift-examples" */;
+			productName = MLXLLM;
+		};
+		97BF2A075DCAD7E3C06EE8FC /* MLX */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 94DA0D1611F2CAF208EE5B71 /* XCRemoteSwiftPackageReference "mlx-swift" */;
+			productName = MLX;
+		};
+		C06C5B0DE74F243B33CDB9B9 /* MLX */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = C7C75A07019FCF27662B02F8 /* XCRemoteSwiftPackageReference "mlx-swift" */;
+			productName = MLX;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 846626E12F297042002935DE /* Project object */;
 }

@@ -1,4 +1,5 @@
 import Foundation
+import Combine
 
 class JTACViewModel: ObservableObject {
 
@@ -11,7 +12,31 @@ class JTACViewModel: ObservableObject {
     /// which previously caused the report to flash empty on every silence commit.
     @Published var report: JTACReport = JTACReport()
 
+    @Published var isParsing: Bool = false
+    @Published var isDownloadingModel: Bool = false
+    @Published var downloadProgress: Double = 0.0
+
     private let parser = JTACParser()
+    private let llmParser = JTACLLMParser() // Add LLM parser
+    
+    private var cancellables = Set<AnyCancellable>()
+
+    init() {
+        llmParser.$isParsing
+            .receive(on: DispatchQueue.main)
+            .assign(to: \.isParsing, on: self)
+            .store(in: &cancellables)
+            
+        llmParser.$isDownloading
+            .receive(on: DispatchQueue.main)
+            .assign(to: \.isDownloadingModel, on: self)
+            .store(in: &cancellables)
+            
+        llmParser.$downloadProgress
+            .receive(on: DispatchQueue.main)
+            .assign(to: \.downloadProgress, on: self)
+            .store(in: &cancellables)
+    }
 
     // MARK: - Public API
 
@@ -30,14 +55,18 @@ class JTACViewModel: ObservableObject {
         }
         runningTranscript = trimmed
         print("[JTACViewModel] Resetting parser")
-        parser.reset()
-        print("[JTACViewModel] Passing trimmed text to parser.process()")
-        parser.process(segment: trimmed)
-        // Snapshot the fully-populated report in one atomic write.
-        // No Combine hop → the UI goes directly from old-report to new-report
-        // with zero intermediate empty state.
-        report = parser.report
-        print("[JTACViewModel] Report snapshot updated. Report isEmpty: \(report.isEmpty)")
+        
+        // Pass to LLM Parser
+        llmParser.parse(transcript: trimmed) { [weak self] newReport in
+            guard let self = self else { return }
+            self.report = newReport
+            print("[JTACViewModel] LLM Report snapshot updated. Report isEmpty: \(self.report.isEmpty)")
+            
+            // Note: you can still fall back or merge with the old regex parser if needed
+            // self.parser.reset()
+            // self.parser.process(segment: trimmed)
+            // let fallbackReport = self.parser.report
+        }
     }
     
     func clearAll() {
