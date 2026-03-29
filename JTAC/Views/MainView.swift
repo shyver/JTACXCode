@@ -232,31 +232,31 @@ struct NineLineSection: View {
                                 .padding(10)
                         }
                     } else if selectedTab.id == "nineLineBrief" {
-                        NineLineBriefDetailView(nineLine: jtacViewModel.report.nineLine, isCompact: true)
+                        NineLineBriefDetailView(jtacViewModel: jtacViewModel, isCompact: true)
                             .padding(.horizontal, 10)
                             .padding(.bottom, 10)
                     } else if selectedTab.id == "safetyOfFlight" {
-                        SafetyOfFlightDetailView(safety: jtacViewModel.report.safetyOfFlight, isCompact: true)
+                        SafetyOfFlightDetailView(jtacViewModel: jtacViewModel, isCompact: true)
                             .padding(.horizontal, 10)
                             .padding(.bottom, 10)
                     } else if selectedTab.id == "situationUpdate" {
-                        SituationUpdateDetailView(sitrep: jtacViewModel.report.situationUpdate, isCompact: true)
+                        SituationUpdateDetailView(jtacViewModel: jtacViewModel, isCompact: true)
                             .padding(.horizontal, 10)
                             .padding(.bottom, 10)
                     } else if selectedTab.id == "gamePlan" {
-                        GamePlanDetailView(gamePlan: jtacViewModel.report.gamePlan, isCompact: true)
+                        GamePlanDetailView(jtacViewModel: jtacViewModel, isCompact: true)
                             .padding(.horizontal, 10)
                             .padding(.bottom, 10)
                     } else if selectedTab.id == "remarks" {
-                        RemarksDetailView(remarks: jtacViewModel.report.remarks, isCompact: true)
+                        RemarksDetailView(jtacViewModel: jtacViewModel, isCompact: true)
                             .padding(.horizontal, 10)
                             .padding(.bottom, 10)
                     } else if selectedTab.id == "restrictions" {
-                        RestrictionsDetailView(restrictions: jtacViewModel.report.restrictions, isCompact: true)
+                        RestrictionsDetailView(jtacViewModel: jtacViewModel, isCompact: true)
                             .padding(.horizontal, 10)
                             .padding(.bottom, 10)
                     } else if selectedTab.id == "bda" {
-                        BDADetailView(bda: jtacViewModel.report.bda, isCompact: true)
+                        BDADetailView(jtacViewModel: jtacViewModel, isCompact: true)
                             .padding(.horizontal, 10)
                             .padding(.bottom, 10)
                     } else {

@@ -71,19 +71,19 @@ struct NineLineView: View {
                                         .padding(20)
                                 }
                             } else if selectedTab.id == "nineLineBrief" {
-                                NineLineBriefDetailView(nineLine: jtacViewModel.report.nineLine)
+                                NineLineBriefDetailView(jtacViewModel: jtacViewModel)
                             } else if selectedTab.id == "safetyOfFlight" {
-                                SafetyOfFlightDetailView(safety: jtacViewModel.report.safetyOfFlight)
+                                SafetyOfFlightDetailView(jtacViewModel: jtacViewModel)
                             } else if selectedTab.id == "situationUpdate" {
-                                SituationUpdateDetailView(sitrep: jtacViewModel.report.situationUpdate)
+                                SituationUpdateDetailView(jtacViewModel: jtacViewModel)
                             } else if selectedTab.id == "gamePlan" {
-                                GamePlanDetailView(gamePlan: jtacViewModel.report.gamePlan)
+                                GamePlanDetailView(jtacViewModel: jtacViewModel)
                             } else if selectedTab.id == "remarks" {
-                                RemarksDetailView(remarks: jtacViewModel.report.remarks)
+                                RemarksDetailView(jtacViewModel: jtacViewModel)
                             } else if selectedTab.id == "restrictions" {
-                                RestrictionsDetailView(restrictions: jtacViewModel.report.restrictions)
+                                RestrictionsDetailView(jtacViewModel: jtacViewModel)
                             } else if selectedTab.id == "bda" {
-                                BDADetailView(bda: jtacViewModel.report.bda)
+                                BDADetailView(jtacViewModel: jtacViewModel)
                             } else {
                                 let text = jtacViewModel.content(for: selectedTab.jtacCategoryKey)
                                 if text.isEmpty {
@@ -178,132 +178,193 @@ struct CASCheckinDetailView: View {
 }
 
 struct NineLineBriefDetailView: View {
-    let nineLine: NineLine?
+    @ObservedObject var jtacViewModel: JTACViewModel
     var isCompact: Bool = false
+
+    private func binding(for keyPath: WritableKeyPath<NineLine, String?>) -> Binding<String> {
+        Binding(
+            get: { jtacViewModel.report.nineLine?[keyPath: keyPath] ?? "" },
+            set: { 
+                if jtacViewModel.report.nineLine == nil { jtacViewModel.report.nineLine = NineLine() }
+                jtacViewModel.report.nineLine?[keyPath: keyPath] = $0.isEmpty ? nil : $0
+            }
+        )
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: isCompact ? 6 : 8) {
-            DetailRow(label: "1. IP / BP", value: nineLine?.ip ?? "", isCompact: isCompact)
-            DetailRow(label: "2. HDG", value: nineLine?.heading ?? "", isCompact: isCompact)
-            DetailRow(label: "3. DISTANCE", value: nineLine?.distance ?? "", isCompact: isCompact)
-            DetailRow(label: "4. ELEVATION", value: nineLine?.targetElevation ?? "", isCompact: isCompact)
-            DetailRow(label: "5. TARGET", value: nineLine?.targetDescription ?? "", isCompact: isCompact)
-            DetailRow(label: "6. LOCATION", value: nineLine?.targetMark ?? "", isCompact: isCompact)
-            DetailRow(label: "7. MARK", value: nineLine?.friendlies ?? "", isCompact: isCompact)
-            DetailRow(label: "8. FRIENDLIES", value: nineLine?.egress ?? "", isCompact: isCompact)
-            DetailRow(label: "9. EGRESS", value: nineLine?.remarksLine ?? "", isCompact: isCompact)
+            EditableDetailRow(label: "1. IP / BP", text: binding(for: \.ip), isCompact: isCompact)
+            EditableDetailRow(label: "2. HDG", text: binding(for: \.heading), isCompact: isCompact)
+            EditableDetailRow(label: "3. DISTANCE", text: binding(for: \.distance), isCompact: isCompact)
+            EditableDetailRow(label: "4. ELEVATION", text: binding(for: \.targetElevation), isCompact: isCompact)
+            EditableDetailRow(label: "5. TARGET", text: binding(for: \.targetDescription), isCompact: isCompact)
+            EditableDetailRow(label: "6. LOCATION", text: binding(for: \.targetMark), isCompact: isCompact)
+            EditableDetailRow(label: "7. MARK", text: binding(for: \.friendlies), isCompact: isCompact)
+            EditableDetailRow(label: "8. FRIENDLIES", text: binding(for: \.egress), isCompact: isCompact)
+            EditableDetailRow(label: "9. EGRESS", text: binding(for: \.remarksLine), isCompact: isCompact)
         }
         .padding(isCompact ? 8 : 12)
     }
 }
 
 struct SafetyOfFlightDetailView: View {
-    let safety: SafetyOfFlight?
+    @ObservedObject var jtacViewModel: JTACViewModel
     var isCompact: Bool = false
+
+    private func binding(for keyPath: WritableKeyPath<SafetyOfFlight, String?>) -> Binding<String> {
+        Binding(
+            get: { jtacViewModel.report.safetyOfFlight?[keyPath: keyPath] ?? "" },
+            set: { 
+                if jtacViewModel.report.safetyOfFlight == nil { jtacViewModel.report.safetyOfFlight = SafetyOfFlight() }
+                jtacViewModel.report.safetyOfFlight?[keyPath: keyPath] = $0.isEmpty ? nil : $0
+            }
+        )
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: isCompact ? 6 : 8) {
-            DetailRow(label: "1. THREATS", value: safety?.threats ?? "", isCompact: isCompact)
-            DetailRow(label: "2. FRIENDLY ASSETS", value: safety?.friendlyAssets ?? "", isCompact: isCompact)
-            DetailRow(label: "3. TERRAINS AND OBSTACLES", value: safety?.terrainsObstacles ?? "", isCompact: isCompact)
-            DetailRow(label: "4. EMERGENCY CONSIDERATIONS", value: safety?.emergencyConsiderations ?? "", isCompact: isCompact)
-            DetailRow(label: "5. E POINT", value: safety?.ePoint ?? "", isCompact: isCompact)
+            EditableDetailRow(label: "1. THREATS", text: binding(for: \.threats), isCompact: isCompact)
+            EditableDetailRow(label: "2. FRIENDLY ASSETS", text: binding(for: \.friendlyAssets), isCompact: isCompact)
+            EditableDetailRow(label: "3. TERRAINS AND OBSTACLES", text: binding(for: \.terrainsObstacles), isCompact: isCompact)
+            EditableDetailRow(label: "4. EMERGENCY CONSIDERATIONS", text: binding(for: \.emergencyConsiderations), isCompact: isCompact)
+            EditableDetailRow(label: "5. E POINT", text: binding(for: \.ePoint), isCompact: isCompact)
         }
         .padding(isCompact ? 8 : 12)
     }
 }
 
 struct SituationUpdateDetailView: View {
-    let sitrep: SituationUpdate?
+    @ObservedObject var jtacViewModel: JTACViewModel
     var isCompact: Bool = false
+
+    private func binding(for keyPath: WritableKeyPath<SituationUpdate, String?>) -> Binding<String> {
+        Binding(
+            get: { jtacViewModel.report.situationUpdate?[keyPath: keyPath] ?? "" },
+            set: { 
+                if jtacViewModel.report.situationUpdate == nil { jtacViewModel.report.situationUpdate = SituationUpdate() }
+                jtacViewModel.report.situationUpdate?[keyPath: keyPath] = $0.isEmpty ? nil : $0
+            }
+        )
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: isCompact ? 6 : 8) {
-            DetailRow(label: "THREATS", value: sitrep?.threats ?? "", isCompact: isCompact)
-            DetailRow(label: "TARGETS/ENEMY", value: sitrep?.targets ?? "", isCompact: isCompact)
-            DetailRow(label: "FRIENDLIES", value: sitrep?.friendlies ?? "", isCompact: isCompact)
-            DetailRow(label: "ARTY", value: sitrep?.arty ?? "", isCompact: isCompact)
-            DetailRow(label: "CLEARANCE", value: sitrep?.clearance ?? "", isCompact: isCompact)
-            DetailRow(label: "ORDNANCE", value: sitrep?.ordnance ?? "", isCompact: isCompact)
-            DetailRow(label: "REMARKS/RESTRICTIONS", value: sitrep?.remarks ?? "", isCompact: isCompact)
+            EditableDetailRow(label: "THREATS", text: binding(for: \.threats), isCompact: isCompact)
+            EditableDetailRow(label: "TARGETS/ENEMY", text: binding(for: \.targets), isCompact: isCompact)
+            EditableDetailRow(label: "FRIENDLIES", text: binding(for: \.friendlies), isCompact: isCompact)
+            EditableDetailRow(label: "ARTY", text: binding(for: \.arty), isCompact: isCompact)
+            EditableDetailRow(label: "CLEARANCE", text: binding(for: \.clearance), isCompact: isCompact)
+            EditableDetailRow(label: "ORDNANCE", text: binding(for: \.ordnance), isCompact: isCompact)
+            EditableDetailRow(label: "REMARKS/RESTRICTIONS", text: binding(for: \.remarks), isCompact: isCompact)
         }
         .padding(isCompact ? 8 : 12)
     }
 }
 
 struct GamePlanDetailView: View {
-    let gamePlan: GamePlan?
+    @ObservedObject var jtacViewModel: JTACViewModel
     var isCompact: Bool = false
+
+    private func binding(for keyPath: WritableKeyPath<GamePlan, String?>) -> Binding<String> {
+        Binding(
+            get: { jtacViewModel.report.gamePlan?[keyPath: keyPath] ?? "" },
+            set: { 
+                if jtacViewModel.report.gamePlan == nil { jtacViewModel.report.gamePlan = GamePlan() }
+                jtacViewModel.report.gamePlan?[keyPath: keyPath] = $0.isEmpty ? nil : $0
+            }
+        )
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: isCompact ? 6 : 8) {
-            DetailRow(label: "TYPE OF CONTROL", value: gamePlan?.typeOfControl ?? "", isCompact: isCompact)
-            DetailRow(label: "METHOD OF ATTACK", value: gamePlan?.methodOfAttack ?? "", isCompact: isCompact)
-            DetailRow(label: "GC INTENT", value: gamePlan?.gcIntent ?? "", isCompact: isCompact)
-            DetailRow(label: "CDE", value: gamePlan?.cde ?? "", isCompact: isCompact)
-            DetailRow(label: "ORDNANCE", value: gamePlan?.ordnance ?? "", isCompact: isCompact)
-            DetailRow(label: "DESIRED EFFECT", value: gamePlan?.desiredEffect ?? "", isCompact: isCompact)
+            EditableDetailRow(label: "TYPE OF CONTROL", text: binding(for: \.typeOfControl), isCompact: isCompact)
+            EditableDetailRow(label: "METHOD OF ATTACK", text: binding(for: \.methodOfAttack), isCompact: isCompact)
+            EditableDetailRow(label: "GC INTENT", text: binding(for: \.gcIntent), isCompact: isCompact)
+            EditableDetailRow(label: "CDE", text: binding(for: \.cde), isCompact: isCompact)
+            EditableDetailRow(label: "ORDNANCE", text: binding(for: \.ordnance), isCompact: isCompact)
+            EditableDetailRow(label: "DESIRED EFFECT", text: binding(for: \.desiredEffect), isCompact: isCompact)
         }
         .padding(isCompact ? 8 : 12)
     }
 }
 
 struct RemarksDetailView: View {
-    let remarks: Remarks?
+    @ObservedObject var jtacViewModel: JTACViewModel
     var isCompact: Bool = false
+
+    private func binding(for keyPath: WritableKeyPath<Remarks, String?>) -> Binding<String> {
+        Binding(
+            get: { jtacViewModel.report.remarks?[keyPath: keyPath] ?? "" },
+            set: { 
+                if jtacViewModel.report.remarks == nil { jtacViewModel.report.remarks = Remarks() }
+                jtacViewModel.report.remarks?[keyPath: keyPath] = $0.isEmpty ? nil : $0
+            }
+        )
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: isCompact ? 6 : 8) {
-            DetailRow(label: "LASER TGT LINE", value: remarks?.laserTgtLine ?? "", isCompact: isCompact)
-            DetailRow(label: "PTL", value: remarks?.ptl ?? "", isCompact: isCompact)
-            DetailRow(label: "GUN-TGT-LINE(MAX ORD)", value: remarks?.gunTgtLine ?? "", isCompact: isCompact)
-            DetailRow(label: "MAX ORD", value: remarks?.maxOrd ?? "", isCompact: isCompact)
-            
-            if let text = remarks?.text, !text.isEmpty {
-                DetailRow(label: "OTHER", value: text, isCompact: isCompact)
-            }
+            EditableDetailRow(label: "LASER TGT LINE", text: binding(for: \.laserTgtLine), isCompact: isCompact)
+            EditableDetailRow(label: "PTL", text: binding(for: \.ptl), isCompact: isCompact)
+            EditableDetailRow(label: "GUN-TGT-LINE(MAX ORD)", text: binding(for: \.gunTgtLine), isCompact: isCompact)
+            EditableDetailRow(label: "MAX ORD", text: binding(for: \.maxOrd), isCompact: isCompact)
+            EditableDetailRow(label: "OTHER", text: binding(for: \.text), isCompact: isCompact)
         }
         .padding(isCompact ? 8 : 12)
     }
 }
 
 struct RestrictionsDetailView: View {
-    let restrictions: Restrictions?
+    @ObservedObject var jtacViewModel: JTACViewModel
     var isCompact: Bool = false
+
+    private func binding(for keyPath: WritableKeyPath<Restrictions, String?>) -> Binding<String> {
+        Binding(
+            get: { jtacViewModel.report.restrictions?[keyPath: keyPath] ?? "" },
+            set: { 
+                if jtacViewModel.report.restrictions == nil { jtacViewModel.report.restrictions = Restrictions() }
+                jtacViewModel.report.restrictions?[keyPath: keyPath] = $0.isEmpty ? nil : $0
+            }
+        )
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: isCompact ? 6 : 8) {
-            DetailRow(label: "DANGER CLOSE", value: restrictions?.dangerClose ?? "", isCompact: isCompact)
-            DetailRow(label: "FAH", value: restrictions?.fah ?? "", isCompact: isCompact)
-            DetailRow(label: "ACA’s", value: restrictions?.acas ?? "", isCompact: isCompact)
-            DetailRow(label: "TOT/TTT", value: restrictions?.totTtt ?? "", isCompact: isCompact)
-            DetailRow(label: "Lat/Alt", value: restrictions?.latAlt ?? "", isCompact: isCompact)
-            DetailRow(label: "POST LAUNCH ABORT", value: restrictions?.postLaunchAbort ?? "", isCompact: isCompact)
-            
-            if let text = restrictions?.text, !text.isEmpty {
-                DetailRow(label: "OTHER", value: text, isCompact: isCompact)
-            }
+            EditableDetailRow(label: "DANGER CLOSE", text: binding(for: \.dangerClose), isCompact: isCompact)
+            EditableDetailRow(label: "FAH", text: binding(for: \.fah), isCompact: isCompact)
+            EditableDetailRow(label: "ACA’s", text: binding(for: \.acas), isCompact: isCompact)
+            EditableDetailRow(label: "TOT/TTT", text: binding(for: \.totTtt), isCompact: isCompact)
+            EditableDetailRow(label: "Lat/Alt", text: binding(for: \.latAlt), isCompact: isCompact)
+            EditableDetailRow(label: "POST LAUNCH ABORT", text: binding(for: \.postLaunchAbort), isCompact: isCompact)
+            EditableDetailRow(label: "OTHER", text: binding(for: \.text), isCompact: isCompact)
         }
         .padding(isCompact ? 8 : 12)
     }
 }
 
 struct BDADetailView: View {
-    let bda: BDAData?
+    @ObservedObject var jtacViewModel: JTACViewModel
     var isCompact: Bool = false
+
+    private func binding(for keyPath: WritableKeyPath<BDAData, String?>) -> Binding<String> {
+        Binding(
+            get: { jtacViewModel.report.bda?[keyPath: keyPath] ?? "" },
+            set: { 
+                if jtacViewModel.report.bda == nil { jtacViewModel.report.bda = BDAData() }
+                jtacViewModel.report.bda?[keyPath: keyPath] = $0.isEmpty ? nil : $0
+            }
+        )
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: isCompact ? 6 : 8) {
-            DetailRow(label: "STATUS", value: bda?.status ?? "", isCompact: isCompact)
-            DetailRow(label: "SIZE", value: bda?.size ?? "", isCompact: isCompact)
-            DetailRow(label: "ACTIVITY", value: bda?.activity ?? "", isCompact: isCompact)
-            DetailRow(label: "LOCATION", value: bda?.location ?? "", isCompact: isCompact)
-            DetailRow(label: "TIME", value: bda?.time ?? "", isCompact: isCompact)
-            DetailRow(label: "REMARKS", value: bda?.remarks ?? "", isCompact: isCompact)
-            
-            if let text = bda?.text, !text.isEmpty {
-                DetailRow(label: "OTHER", value: text, isCompact: isCompact)
-            }
+            EditableDetailRow(label: "STATUS", text: binding(for: \.status), isCompact: isCompact)
+            EditableDetailRow(label: "SIZE", text: binding(for: \.size), isCompact: isCompact)
+            EditableDetailRow(label: "ACTIVITY", text: binding(for: \.activity), isCompact: isCompact)
+            EditableDetailRow(label: "LOCATION", text: binding(for: \.location), isCompact: isCompact)
+            EditableDetailRow(label: "TIME", text: binding(for: \.time), isCompact: isCompact)
+            EditableDetailRow(label: "REMARKS", text: binding(for: \.remarks), isCompact: isCompact)
+            EditableDetailRow(label: "OTHER", text: binding(for: \.text), isCompact: isCompact)
         }
         .padding(isCompact ? 8 : 12)
     }
