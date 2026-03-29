@@ -112,15 +112,38 @@ struct LiveTranscriptSection: View {
             
             // Action buttons
             HStack(spacing: 10) {
-                ActionButton(title: "Confirm", color: AppColors.confirmGreen)
-                    .frame(height: 60)
-                ActionButton(title: "Correct", color: AppColors.correctYellow)
-                    .frame(height: 60)
-                ActionButton(title: "Reject", color: AppColors.rejectRed)
-                    .frame(height: 60)
+                ActionButton(title: "Confirm", color: AppColors.confirmGreen) {
+                    viewModel.confirmTranscript()
+                }
+                .frame(height: 60)
+                .disabled(viewModel.jtacViewModel.isParsing || viewModel.jtacViewModel.isDownloadingModel)
+                
+                ActionButton(title: "Correct", color: AppColors.correctYellow) {
+                    // TBD
+                }
+                .frame(height: 60)
+                .disabled(viewModel.jtacViewModel.isParsing || viewModel.jtacViewModel.isDownloadingModel)
+                
+                ActionButton(title: "Reject", color: AppColors.rejectRed) {
+                    viewModel.rejectUnconfirmedTranscript()
+                }
+                .frame(height: 60)
+                .disabled(viewModel.jtacViewModel.isParsing || viewModel.jtacViewModel.isDownloadingModel)
             }
             .padding(.horizontal, 15)
             .padding(.vertical, 10)
+            
+            if viewModel.jtacViewModel.isDownloadingModel {
+                Text("Downloading AI Model... \(Int(viewModel.jtacViewModel.downloadProgress * 100))%")
+                    .font(.system(size: 14))
+                    .foregroundColor(.yellow)
+                    .padding(.bottom, 5)
+            } else if viewModel.jtacViewModel.isParsing {
+                Text("AI Analyzing Transcript...")
+                    .font(.system(size: 14))
+                    .foregroundColor(.yellow)
+                    .padding(.bottom, 5)
+            }
         }
         .background(Color.black)
     }

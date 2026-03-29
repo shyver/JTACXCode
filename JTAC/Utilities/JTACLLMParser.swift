@@ -69,32 +69,53 @@ class JTACLLMParser: ObservableObject, @unchecked Sendable {
             You are an expert military communications data extractor.
             Given the following radio transcript, extract the details into a strict JSON format. 
             Do NOT include any extra conversational text outside the JSON.
-            If a field is not present in the transcript, output null for that field.
+            If a field is not present in the transcript, output "" (an empty string) for that field, do NOT output null.
+            
+            IMPORTANT: For fields mapping to specific military terms (e.g. ordnances, threats, friendlies, target types, egress directions), you MUST match them to the reference vocabulary provided below. Speech-to-text is flawed, so interpret phonetic mistakes and map them to the closest term from the reference vocabulary. For example, "tattoo control" is "type 2 control", "bump on target" is "bomb on target", "market to" is "mk 82", etc.
+            Coordinates, headings, distances, elevations, and times are not restricted to this list.
+            
+            Reference Vocabulary:
+            - Threats: No threat except small arms and possible manpads, M163 Vulcan, M167 VADS, M6 Linebacker, Avenger, Chaparral, NASAMS, MIM-23 HAWK, MIM-104 PATRIOT, THAAD, ZSU-23-4 Shilka, ZSU-57-2, Pantsir-S1, Tor-M1, 2K12 Kub, Buk-M1, S-200, S-300, S-400
+            - Friendly Assets: F-5E/F, Falcon, Zoomer, Diver, Shooter, L59 Albatros, T6-Texan, Lynx, ASAD, UH-60 Blackhawk, OH-58 Kiowa, Viper, AB-205, Tiger, C-130J/H, Hercule, Tanit, L410, Manar, AS-350 Ecureuil, Fahd, Gazzelle, Anka, eagle, C-208, Scout, Skybird
+            - Terrain/Obstacles: mountain, hills, sudden terrain rise, open desert, river, lake, bird hazards, limited emergency landing zone, obstacle avoidance, high-rise buildings, power lines, transmission tower, Radio TV antenna
+            - Targets: Vehicle, Tank, MBT, APC, IFC, Armored Vehicle, truck, Technical, Convoy, Column, Personnel, Infantry, Dismounted, squad, platoon, troops, fighters, insurgents, structures, buildings, compound, house, bunker, trench, position, fortification, warehouse, AAA, SAM, MANPAD, Heavy machinegun, machinegun, mortar, artillery, rocket launcher
+            - Target States: moving, stationary, dug-in, fortified, exposed, concealed, dispersed, concentrated, high value, priority, command post
+            - Ordnance: rockets, gun, missiles, air to ground missiles, mk 82, mk 83, mk 84, gbu 10, gbu 12, gbu 16, hydra 70, APKWS, AGM-114 Hellfire, AGM-65 Maverick, AGM-88 HARM, GBU 31, GBU 38, GBU 32
+            - Game Plan Control Type: 1, 2, 3
+            - Method of Attack: Bomb on target (BOT), Bomb on coordinate (BOC)
+            - Commander Intent: Support, Protect, Enable, Deny, Destroy, Disrupt, Secure, neutralize, suppress, engage, cover, defend, delay, observe
+            - Desired Effect: Destroy, Neutralize, Suppress, Disable, Disrupt
+            - Target Mark: Smoke, IR pointer, laser, beacon, strobe, panel, flare, Talk on
+            - Directions/Egress: north, south, east, west, north east, south east, south west, north west, as pilot discretion, as required, as needed
+            - ACAs status: active, established, in effect, cold, hot
 
-            Use this exact JSON schema:
+            Use this exact JSON schema. NEVER output the `cas` property. If information is not mentioned, use `""`:
             {
-              "cas": {
-                "callsign": "string", "mission": "string", "aircraftType": "string",
-                "posAndAlt": "string", "ordnance": "string", "playtime": "string",
-                "capes": "string", "laserCode": "string", "vdlCode": "string",
-                "abortCode": "string", "type": "string", "control": "string"
-              },
               "situationUpdate": {
-                "threats": "string", "targets": "string", "friendlies": "string",
-                "arty": "string", "clearance": "string", "ordnance": "string", "remarks": "string"
+                "threats": "", "targets": "", "friendlies": "",
+                "arty": "", "clearance": "", "ordnance": "", "remarks": ""
               },
               "gamePlan": {
-                "typeOfControl": "string", "methodOfAttack": "string", "gcIntent": "string",
-                "cde": "string", "ordnance": "string", "desiredEffect": "string"
+                "typeOfControl": "", "methodOfAttack": "", "gcIntent": "",
+                "cde": "", "ordnance": "", "desiredEffect": ""
               },
               "safetyOfFlight": {
-                 "threats": "string", "friendlyAssets": "string", "terrainsObstacles": "string",
-                 "emergencyConsiderations": "string", "ePoint": "string"
+                 "threats": "", "friendlyAssets": "", "terrainsObstacles": "",
+                 "emergencyConsiderations": "", "ePoint": ""
               },
               "nineLine": {
-                "ip": "string", "heading": "string", "distance": "string", "targetElevation": "string",
-                "targetDescription": "string", "targetMark": "string", "friendlies": "string",
-                "egress": "string", "remarksLine": "string"
+                "ip": "", "heading": "", "distance": "", "targetElevation": "",
+                "targetDescription": "", "targetMark": "", "friendlies": "",
+                "egress": "", "remarksLine": ""
+              },
+              "remarks": {
+                "laserTgtLine": "", "ptl": "", "gunTgtLine": "", "maxOrd": "", "text": ""
+              },
+              "restrictions": {
+                "dangerClose": "", "fah": "", "acas": "", "totTtt": "", "latAlt": "", "postLaunchAbort": "", "text": ""
+              },
+              "bda": {
+                "status": "", "size": "", "activity": "", "location": "", "time": "", "remarks": "", "text": ""
               }
             }
             """
@@ -103,7 +124,13 @@ class JTACLLMParser: ObservableObject, @unchecked Sendable {
             
             do {
                 let userInput = UserInput(prompt: prompt)
+                
+                print("[JTACLLMParser] -------------- SENDING REQUEST TO LLM --------------")
+                print("[JTACLLMParser] Preparing input for MLX processor...")
+                
                 let lmInput = try await context.processor.prepare(input: userInput)
+                
+                print("[JTACLLMParser] Input prepared. Beginning stream generation...")
                 
                 var generatedText = ""
                 let parameters = GenerateParameters(temperature: 0.1, topP: 0.9)
@@ -123,7 +150,9 @@ class JTACLLMParser: ObservableObject, @unchecked Sendable {
                     }
                 }
                 
+                print("[JTACLLMParser] -------------- LLM RESPONDED --------------")
                 print("[JTACLLMParser] LLM Raw Output:\n\(generatedText)")
+                print("[JTACLLMParser] ---------------------------------------------")
                 
                 // Parse JSON
                 if let report = self.extractJTACReport(from: generatedText) {

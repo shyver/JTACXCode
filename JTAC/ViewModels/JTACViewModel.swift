@@ -48,24 +48,13 @@ class JTACViewModel: ObservableObject {
     /// never sees an intermediate empty state.
     func reparse(fullText: String) {
         print("[JTACViewModel] reparse called with fullText '\(fullText)'")
-        let trimmed = fullText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else {
-            print("[JTACViewModel] reparse aborted because fullText is empty")
-            return
-        }
-        runningTranscript = trimmed
-        print("[JTACViewModel] Resetting parser")
         
-        // Pass to LLM Parser
-        llmParser.parse(transcript: trimmed) { [weak self] newReport in
+        // Use LLM
+        print("[JTACViewModel] Passing text to llmParser.parse()")
+        llmParser.parse(transcript: fullText) { [weak self] parsedReport in
             guard let self = self else { return }
-            self.report = newReport
-            print("[JTACViewModel] LLM Report snapshot updated. Report isEmpty: \(self.report.isEmpty)")
-            
-            // Note: you can still fall back or merge with the old regex parser if needed
-            // self.parser.reset()
-            // self.parser.process(segment: trimmed)
-            // let fallbackReport = self.parser.report
+            print("[JTACViewModel] Received parsed report from LLM")
+            self.report = parsedReport
         }
     }
     

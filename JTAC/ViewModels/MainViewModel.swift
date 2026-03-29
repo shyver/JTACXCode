@@ -135,10 +135,16 @@ class MainViewModel: ObservableObject {
     
     /// Confirms the current transcript history and sends all messages for interpretation.
     func confirmTranscript() {
+        print("[MainViewModel] -------------- CONFIRM BUTTON CLICKED --------------")
         print("[MainViewModel] confirmTranscript pressed.")
-        lastConfirmedIndex = transcriptHistory.count
+        
+        let newSegments = Array(transcriptHistory[lastConfirmedIndex...])
+        guard !newSegments.isEmpty else { return }
         
         let fullTextToParse = transcriptHistory.map { $0.text }.joined(separator: " ")
+        print("[MainViewModel] Sending to jtacViewModel for parsing: \(fullTextToParse)")
+        lastConfirmedIndex = transcriptHistory.count
+        
         print("[MainViewModel] Passing text to jtacViewModel.reparse: '\(fullTextToParse)'")
         jtacViewModel.reparse(fullText: fullTextToParse)
     }

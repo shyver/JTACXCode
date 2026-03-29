@@ -196,9 +196,12 @@ final class SpeechManager: NSObject, ObservableObject {
         print("[SpeechManager] startRecording called")
         #if targetEnvironment(simulator)
         isRecording = true
+        isTeardownInProgress = false
         simulateSegments()
         return
         #endif
+
+        isTeardownInProgress = false
 
         audioQueue.sync {
             activeRequest = nil
@@ -286,9 +289,9 @@ final class SpeechManager: NSObject, ObservableObject {
     // MARK: - Recognition Task
 
     private func startNewRecognitionTask() {
-        guard isRecording, !isTeardownInProgress else { 
+        guard isRecording, !isTeardownInProgress else {
             print("[SpeechManager] startNewRecognitionTask aborted. isRecording: \(isRecording), isTeardownInProgress: \(isTeardownInProgress)")
-            return 
+            return
         }
         
         print("[SpeechManager] Creating SFSpeechRecognitionTask for generation \(taskGeneration + 1)")
@@ -311,9 +314,9 @@ final class SpeechManager: NSObject, ObservableObject {
             guard let self = self else { return }
             
             // Ignore results from old tasks
-            guard self.taskGeneration == currentGeneration else { 
+            guard self.taskGeneration == currentGeneration else {
                 print("[SpeechManager] Warning: Ignoring result for old generation \(currentGeneration). Current is \(self.taskGeneration)")
-                return 
+                return
             }
 
             DispatchQueue.main.async {
@@ -334,10 +337,10 @@ final class SpeechManager: NSObject, ObservableObject {
                         print("[SpeechManager] ⚠️ Apple returned empty text! Preserving previously built text: '\(self.transcribedText)'")
                     } else {
                         // APPLE BUG WORKAROUND 2:
-                        // SFSpeechRecognizer has a rolling buffer limit and will silently delete the front half 
+                        // SFSpeechRecognizer has a rolling buffer limit and will silently delete the front half
                         // of your sentence if you speak continuously.
-                        // If the incoming text length violently shrinks by more than 50% on a long string, 
-                        // we MUST salvage what we had by instantly committing it to chat history 
+                        // If the incoming text length violently shrinks by more than 50% on a long string,
+                        // we MUST salvage what we had by instantly committing it to chat history
                         // before accepting the new short text.
                         let oldLength = self.transcribedText.count
                         let newLength = newText.count
